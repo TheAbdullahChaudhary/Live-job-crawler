@@ -130,6 +130,19 @@
     .campaign .cclose{opacity:.3;font-size:14px;flex-shrink:0}
     .campaign .cclose:hover{opacity:1;color:var(--red)}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    .manage-bar{display:flex;align-items:center;gap:10px;padding:8px 22px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+    .manage-bar.hidden{display:none}
+    .sel-count{font-size:13px;color:var(--muted);flex:1}
+    .btn-del{padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;cursor:pointer}
+    .btn-del-sel{background:#ef444420;border:1px solid var(--red);color:var(--red)}
+    .btn-del-sel:hover{background:#ef444440}
+    .btn-del-all{background:transparent;border:1px solid #555;color:var(--muted)}
+    .btn-del-all:hover{border-color:var(--red);color:var(--red)}
+    .card-check{position:absolute;top:10px;left:10px;width:16px;height:16px;accent-color:var(--accent);cursor:pointer;display:none}
+    .card{position:relative}
+    .select-mode .card-check{display:block}
+    .select-mode .card{padding-left:34px}
+    .card.selected{border-color:var(--accent);background:#6366f115}
     @media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
   </style>
 </head>
@@ -181,8 +194,28 @@
           <option value="onsite">🏢 Onsite</option>
           <option value="hybrid">🔀 Hybrid</option>
         </select>
-        <span class="lbl">Location</span>
-        <input type="text" id="f-loc" placeholder="e.g. Remote, London..."/>
+        <span class="lbl">Location (select multiple)</span>
+        <select id="f-loc" multiple size="5" style="height:110px">
+          <option value="remote">🌍 Remote / Worldwide</option>
+          <option value="united states">🇺🇸 United States</option>
+          <option value="united kingdom">🇬🇧 United Kingdom</option>
+          <option value="canada">🇨🇦 Canada</option>
+          <option value="germany">🇩🇪 Germany</option>
+          <option value="france">🇫🇷 France</option>
+          <option value="netherlands">🇳🇱 Netherlands</option>
+          <option value="australia">🇦🇺 Australia</option>
+          <option value="india">🇮🇳 India</option>
+          <option value="pakistan">🇵🇰 Pakistan</option>
+          <option value="singapore">🇸🇬 Singapore</option>
+          <option value="poland">🇵🇱 Poland</option>
+          <option value="spain">🇪🇸 Spain</option>
+          <option value="portugal">🇵🇹 Portugal</option>
+          <option value="brazil">🇧🇷 Brazil</option>
+          <option value="europe">🌍 Europe</option>
+          <option value="latin america">🌎 Latin America</option>
+          <option value="asia">🌏 Asia</option>
+        </select>
+        <span style="font-size:11px;color:var(--muted)">Ctrl/Cmd+click to select multiple</span>
         <span class="lbl">My Experience (years) — shows jobs I qualify for</span>
         <input type="number" id="f-exp" placeholder="e.g. 3" min="0" max="30"/>
         <button class="btn btn-primary" onclick="openSearchTab()">🔍 Search Jobs</button>
@@ -205,14 +238,25 @@
         <label class="src-item"><input type="checkbox" value="remotive" checked/><span class="sn">Remotive</span><span class="sb">API</span></label>
         <label class="src-item"><input type="checkbox" value="arbeitnow" checked/><span class="sn">Arbeitnow</span><span class="sb">API</span></label>
         <label class="src-item"><input type="checkbox" value="wwr" checked/><span class="sn">We Work Remotely</span><span class="sb">RSS</span></label>
-        <label class="src-item"><input type="checkbox" value="greenhouse" checked/><span class="sn">Greenhouse</span><span class="sb">30 cos</span></label>
-        <label class="src-item"><input type="checkbox" value="lever" checked/><span class="sn">Lever</span><span class="sb">15 cos</span></label>
+        <label class="src-item"><input type="checkbox" value="jobicy" checked/><span class="sn">Jobicy</span><span class="sb">API</span></label>
+        <label class="src-item"><input type="checkbox" value="himalayas" checked/><span class="sn">Himalayas</span><span class="sb">API</span></label>
+        <label class="src-item"><input type="checkbox" value="wellfound" checked/><span class="sn">Wellfound</span><span class="sb">Scrape</span></label>
+        <label class="src-item"><input type="checkbox" value="greenhouse" checked/><span class="sn">Greenhouse</span><span class="sb">55 cos</span></label>
+        <label class="src-item"><input type="checkbox" value="lever" checked/><span class="sn">Lever</span><span class="sb">25 cos</span></label>
         <label class="src-item"><input type="checkbox" value="google" checked/><span class="sn">Google Search</span><span class="sb">SerpApi</span></label>
       </div>
       <div class="crawl-opts">
         <label class="crawl-row">
           <input type="checkbox" id="opt-continuous"/>
           <span>Keep crawling until stopped</span>
+        </label>
+        <label class="crawl-row" id="opt-duration-row" style="display:none">
+          <span>Auto-stop after</span>
+          <input type="number" id="opt-duration" value="60" min="1" style="width:60px"/>
+          <select id="opt-unit" style="width:80px;padding:5px 6px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+            <option value="60">min</option>
+            <option value="3600">hr</option>
+          </select>
         </label>
         <button class="btn btn-crawl" onclick="startCrawl()">↻ Start Crawl</button>
       </div>
@@ -308,9 +352,9 @@
   async function openSearchTab() {
     const role = document.getElementById('f-role').value;
     const type = document.getElementById('f-type').value;
-    const loc  = document.getElementById('f-loc').value;
+    const locs = [...document.getElementById('f-loc').selectedOptions].map(o => o.value);
     const exp  = document.getElementById('f-exp').value;
-    const label = [role, type?`(${type})`:'', loc, exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
+    const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
 
     const id = makeId();
     Object.keys(tabs).forEach(k => tabs[k].active=false);
@@ -319,6 +363,12 @@
 
     const panel = createPanel(id);
     panel.innerHTML = `
+      <div class="manage-bar hidden" id="mbar-${id}">
+        <span class="sel-count" id="sel-count-${id}">0 selected</span>
+        <button class="btn-del btn-del-sel" onclick="deleteSelected('${id}')">🗑 Delete Selected</button>
+        <button class="btn-del btn-del-all" onclick="deleteAll('${id}')">🗑 Clear All Jobs</button>
+        <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="toggleSelectMode('${id}',false)">Cancel</button>
+      </div>
       <div class="jobs-area">
         <div class="jobs-header">
           <h2>${label}</h2>
@@ -331,6 +381,7 @@
               <option value="exp_desc">📉 Exp: High→Low</option>
               <option value="company">🏢 Company A-Z</option>
             </select>
+            <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px" onclick="toggleSelectMode('${id}',true)">☑ Select</button>
           </div>
         </div>
         <div class="grid" id="grid-${id}"></div>
@@ -338,7 +389,7 @@
     panel.classList.add('active');
     document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
 
-    tabs[id].filters = {role,type,loc,exp};
+    tabs[id].filters = {role, type, locs, exp};
     await loadJobsIntoTab(id, 'newest');
   }
 
@@ -351,7 +402,25 @@
     const params = new URLSearchParams({sort});
     if (f.role) params.append('role', f.role);
     if (f.type) params.append('job_type', f.type);
-    if (f.loc)  params.append('location', f.loc);
+    // fetch once per location then merge+dedupe
+    if (f.locs && f.locs.length) {
+      let all = [];
+      for (const loc of f.locs) {
+        const p = new URLSearchParams(params);
+        p.append('location', loc);
+        if (f.exp) p.append('experience', f.exp);
+        const jobs = await fetch('/api/jobs?'+p).then(r=>r.json());
+        all.push(...jobs);
+      }
+      // dedupe by id
+      const seen = new Set();
+      const jobs = all.filter(j => seen.has(j.id) ? false : seen.add(j.id));
+      const cnt = document.getElementById('cnt-'+id);
+      if (cnt) cnt.textContent = `${jobs.length} jobs found`;
+      const grid = document.getElementById('grid-'+id);
+      if (grid) grid.innerHTML = renderCards(jobs);
+      return;
+    }
     if (f.exp)  params.append('experience', f.exp);
     const jobs = await fetch('/api/jobs?'+params).then(r=>r.json());
     const cnt = document.getElementById('cnt-'+id);
@@ -361,6 +430,11 @@
   }
 
   // ── Crawl Tab ─────────────────────────────────────────────────────────────
+  // show duration row when continuous checked
+  document.getElementById('opt-continuous').addEventListener('change', function() {
+    document.getElementById('opt-duration-row').style.display = this.checked ? 'flex' : 'none';
+  });
+
   async function startCrawl() {
     const checked = [...document.querySelectorAll('.src-list input:checked')].map(i=>i.value);
     if (!checked.length) { alert('Select at least one source.'); return; }
@@ -405,6 +479,17 @@
     const params = new URLSearchParams({sources, continuous, interval});
     const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
     tabs[id].crawl_id = crawl_id;
+
+    // auto-stop timer
+    if (continuous) {
+      const dur = parseInt(document.getElementById('opt-duration').value) || 60;
+      const unit = parseInt(document.getElementById('opt-unit').value) || 60;
+      const ms = dur * unit * 1000;
+      tabs[id].autoStopTimer = setTimeout(() => {
+        appendLog(id, `⏱ Auto-stop triggered after ${dur} ${unit===60?'min':'hr'}`);
+        stopCrawl(id);
+      }, ms);
+    }
 
     // register campaign
     const campId = crawl_id;
@@ -462,6 +547,7 @@
       const camp = Object.values(campaigns).find(c=>c.tabId===id);
       if (camp) { camp.status='stopped'; renderCampaigns(); }
     }
+    if (tabs[id]?.autoStopTimer) clearTimeout(tabs[id].autoStopTimer);
   }
 
   function appendLog(id, line) {
@@ -494,7 +580,8 @@
       const expPct = j.experience_max ? Math.min(100,(j.experience_max/15)*100) : 0;
       let src='?'; try{src=new URL(j.url).hostname.replace('www.','').split('.')[0];}catch(_){}
       const posted = j.posted_at ? new Date(j.posted_at).toLocaleDateString() : null;
-      return `<div class="card">
+      return `<div class="card" data-id="${j.id}" onclick="toggleCardSelect(this)">
+        <input type="checkbox" class="card-check" data-id="${j.id}" onclick="event.stopPropagation();toggleCardSelect(this.closest('.card'))"/>
         <div class="card-top">
           <div class="ct"><div class="title">${j.title}</div><div class="co">🏢 ${j.company}</div></div>
           <span class="badge ${type}">${type}</span>
@@ -507,10 +594,56 @@
         ${expPct?`<div class="exp-bar"><div class="exp-fill" style="width:${expPct}%"></div></div>`:''}
         <div class="card-foot">
           <span class="src-tag">${src}</span>
-          <a class="apply" href="${j.url}" target="_blank">Apply →</a>
+          <a class="apply" href="${j.url}" target="_blank" onclick="event.stopPropagation()">Apply →</a>
         </div>
       </div>`;
     }).join('');
+  }
+
+  function toggleSelectMode(tabId, on) {
+    const panel = document.getElementById('panel-'+tabId);
+    const mbar  = document.getElementById('mbar-'+tabId);
+    if (!panel || !mbar) return;
+    panel.querySelector('.jobs-area').classList.toggle('select-mode', on);
+    mbar.classList.toggle('hidden', !on);
+    if (!on) panel.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+    updateSelCount(tabId);
+  }
+
+  function toggleCardSelect(card) {
+    const panel = card.closest('.jobs-area');
+    if (!panel?.classList.contains('select-mode')) return;
+    card.classList.toggle('selected');
+    card.querySelector('.card-check').checked = card.classList.contains('selected');
+    // find tabId
+    const tabId = card.closest('.panel')?.id?.replace('panel-','');
+    if (tabId) updateSelCount(tabId);
+  }
+
+  function updateSelCount(tabId) {
+    const panel = document.getElementById('panel-'+tabId);
+    const count = panel?.querySelectorAll('.card.selected').length || 0;
+    const el = document.getElementById('sel-count-'+tabId);
+    if (el) el.textContent = `${count} selected`;
+  }
+
+  async function deleteSelected(tabId) {
+    const panel = document.getElementById('panel-'+tabId);
+    const ids = [...panel.querySelectorAll('.card.selected')].map(c => c.dataset.id).join(',');
+    if (!ids) return;
+    if (!confirm(`Delete ${ids.split(',').length} selected jobs?`)) return;
+    await fetch(`/api/jobs/selected?ids=${ids}`, {method:'DELETE'});
+    toggleSelectMode(tabId, false);
+    await loadJobsIntoTab(tabId, 'newest');
+    loadStats();
+  }
+
+  async function deleteAll(tabId) {
+    if (!confirm('Delete ALL jobs from the database?')) return;
+    await fetch('/api/jobs', {method:'DELETE'});
+    toggleSelectMode(tabId, false);
+    await loadJobsIntoTab(tabId, 'newest');
+    loadStats();
   }
 
   // ── Stats ─────────────────────────────────────────────────────────────────
@@ -523,10 +656,12 @@
   }
 
   function clearFilters() {
-    ['f-role','f-type','f-loc','f-exp'].forEach(id=>{
+    ['f-role','f-type','f-exp'].forEach(id=>{
       const el=document.getElementById(id);
       el.tagName==='SELECT'?el.selectedIndex=0:el.value='';
     });
+    // deselect all location options
+    [...document.getElementById('f-loc').options].forEach(o => o.selected = false);
     activeStatFilter=null;
     ['total','remote','onsite','hybrid'].forEach(t=>document.getElementById('st-'+t).classList.remove('active'));
   }

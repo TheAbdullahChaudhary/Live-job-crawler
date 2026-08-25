@@ -11,18 +11,27 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
 TARGET_ROLES = ["site reliability", "sre", "devops", "platform engineer", "infrastructure engineer"]
 
 GREENHOUSE_COMPANIES = [
+    # Cloud & Infra
     "cloudflare", "hashicorp", "datadog", "gitlab", "mongodb",
     "elastic", "confluent", "grafana", "pagerduty", "snyk",
     "github", "shopify", "airbnb", "uber", "lyft",
     "figma", "notion", "linear", "vercel", "stripe",
     "discord", "dropbox", "twilio", "okta", "splunk",
-    "newrelic", "dynatrace", "sumologic", "lacework", "wiz-io"
+    "newrelic", "dynatrace", "sumologic", "lacework", "wiz-io",
+    # More tech
+    "squarespace", "hubspot", "zendesk", "intercom", "segment",
+    "mixpanel", "amplitude", "braze", "contentful", "algolia",
+    "fastly", "cloudinary", "auth0", "1password", "tailscale",
+    "planetscale", "neon", "supabase", "render", "railway",
+    "samsara", "verkada", "scale-ai", "weights-biases", "huggingface",
 ]
 
 LEVER_COMPANIES = [
     "netflix", "pinterest", "reddit", "robinhood", "coinbase",
     "plaid", "brex", "rippling", "airtable", "retool",
-    "scale-ai", "anduril", "benchling", "carta", "gusto"
+    "anduril", "benchling", "carta", "gusto", "lattice",
+    "loom", "mercury", "ramp", "deel", "remote",
+    "dbt-labs", "airbyte", "prefect", "dagster", "meltano",
 ]
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -109,11 +118,14 @@ def crawl_weworkremotely():
             resp = requests.get(feed_url, headers=HEADERS, timeout=15)
             soup = BeautifulSoup(resp.text, "lxml-xml")
             for item in soup.find_all("item"):
-                title = item.find("title").get_text(strip=True) if item.find("title") else ""
+                raw_title = item.find("title").get_text(strip=True) if item.find("title") else ""
+                # WWR format: "Company: Job Title"
+                if ": " in raw_title:
+                    company, title = raw_title.split(": ", 1)
+                else:
+                    company, title = "Unknown", raw_title
                 if not is_target_role(title): continue
                 url = item.find("link").get_text(strip=True) if item.find("link") else ""
-                company_el = item.find("company") or item.find("author")
-                company = company_el.get_text(strip=True) if company_el else "Unknown"
                 region_el = item.find("region")
                 location = region_el.get_text(strip=True) if region_el else "Remote"
                 desc = item.find("description")
@@ -122,7 +134,7 @@ def crawl_weworkremotely():
                 save_job({"title": title, "company": company, "location": location,
                     "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": "remote", "url": url, "posted_at": ""})
-                print(f"  [WWR] {title}")
+                print(f"  [WWR] {title} @ {company}")
         except Exception as e:
             print(f"WWR error: {e}")
 
@@ -175,7 +187,70 @@ def crawl_lever():
         except Exception as e:
             print(f"Lever error ({company}): {e}")
 
-# ── Google Search via SerpApi ─────────────────────────────────────────────────
+
+# ── Jobicy API (free, no key) ─────────────────────────────────────────────────
+
+def crawl_jobicy():
+    print("Crawling Jobicy...")
+    try:
+        data = requests.get("https://jobicy.com/api/v2/remote-jobs?count=50&tag=devops", timeout=15).json()
+        for j in data.get("jobs", []):
+            title = j.get("jobTitle", "")
+            if not is_target_role(title): continue
+            text = BeautifulSoup(j.get("jobDescription", ""), "html.parser").get_text()
+            exp_min, exp_max = extract_experience(text)
+            save_job({"title": title, "company": j.get("companyName", ""),
+                "location": j.get("jobGeo", "Remote"),
+                "experience_min": exp_min, "experience_max": exp_max,
+                "job_type": "remote", "url": j.get("url", ""), "posted_at": j.get("pubDate", "")})
+            print(f"  [Jobicy] {title}")
+    except Exception as e:
+        print(f"Jobicy error: {e}")
+
+# ── Himalayas API (free, no key) ──────────────────────────────────────────────
+
+def crawl_himalayas():
+    print("Crawling Himalayas...")
+    for role in ["devops", "sre", "platform-engineer"]:
+        try:
+            data = requests.get(f"https://himalayas.app/jobs/api?q={role}&limit=50", timeout=15).json()
+            for j in data.get("jobs", []):
+                title = j.get("title", "")
+                if not is_target_role(title): continue
+                text = j.get("description", "")
+                exp_min, exp_max = extract_experience(text)
+                save_job({"title": title, "company": j.get("company", {}).get("name", ""),
+                    "location": j.get("locationRestrictions", ["Remote"])[0] if j.get("locationRestrictions") else "Remote",
+                    "experience_min": exp_min, "experience_max": exp_max,
+                    "job_type": "remote", "url": j.get("applicationLink", ""), "posted_at": j.get("createdAt", "")})
+                print(f"  [Himalayas] {title}")
+        except Exception as e:
+            print(f"Himalayas error: {e}")
+
+# ── Wellfound (AngelList) public feed ─────────────────────────────────────────
+
+def crawl_wellfound():
+    print("Crawling Wellfound...")
+    for role in ["devops-engineer", "site-reliability-engineer", "platform-engineer"]:
+        try:
+            resp = requests.get(f"https://wellfound.com/role/r/{role}", headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(resp.text, "html.parser")
+            for card in soup.select("div[data-test='StartupResult']"):
+                title_el = card.select_one("a[data-test='job-title']") or card.select_one("h2")
+                if not title_el: continue
+                title = title_el.get_text(strip=True)
+                if not is_target_role(title): continue
+                url = "https://wellfound.com" + title_el.get("href","") if title_el.get("href","").startswith("/") else title_el.get("href","")
+                co_el = card.select_one("a[data-test='startup-link']") or card.select_one("h3")
+                company = co_el.get_text(strip=True) if co_el else "Unknown"
+                text = card.get_text()
+                exp_min, exp_max = extract_experience(text)
+                save_job({"title": title, "company": company, "location": "Unknown",
+                    "experience_min": exp_min, "experience_max": exp_max,
+                    "job_type": extract_job_type(text), "url": url, "posted_at": ""})
+                print(f"  [Wellfound] {title}")
+        except Exception as e:
+            print(f"Wellfound error: {e}")
 
 def scrape_job_page(url: str, company: str):
     try:
@@ -239,6 +314,9 @@ def run_crawl():
     if run_all or "remotive"   in sources: crawl_remotive()
     if run_all or "arbeitnow"  in sources: crawl_arbeitnow()
     if run_all or "wwr"        in sources: crawl_weworkremotely()
+    if run_all or "jobicy"     in sources: crawl_jobicy()
+    if run_all or "himalayas"  in sources: crawl_himalayas()
+    if run_all or "wellfound"  in sources: crawl_wellfound()
     if run_all or "greenhouse" in sources: crawl_greenhouse()
     if run_all or "lever"      in sources: crawl_lever()
     if run_all or "google"     in sources: crawl_google()

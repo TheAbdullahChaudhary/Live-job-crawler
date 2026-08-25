@@ -108,6 +108,21 @@ def stream_crawl(crawl_id: str):
                 break
     return StreamingResponse(generate(), media_type="text/event-stream")
 
+@app.delete("/api/jobs")
+def delete_all_jobs():
+    conn = get_conn()
+    conn.execute("DELETE FROM jobs")
+    conn.commit()
+    return {"deleted": "all"}
+
+@app.delete("/api/jobs/selected")
+def delete_selected_jobs(ids: str = Query(..., description="comma-separated job ids")):
+    conn = get_conn()
+    id_list = [int(i) for i in ids.split(",") if i.strip().isdigit()]
+    conn.execute(f"DELETE FROM jobs WHERE id IN ({','.join('?'*len(id_list))})", id_list)
+    conn.commit()
+    return {"deleted": len(id_list)}
+
 @app.get("/api/stats")
 def stats():
     conn = get_conn()
