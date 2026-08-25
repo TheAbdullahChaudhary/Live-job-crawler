@@ -255,58 +255,45 @@ def crawl_wellfound():
         except Exception as e:
             print(f"Wellfound error: {e}")
 
-def scrape_job_page(url: str, company: str):
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(resp.text, "html.parser")
-        title_el = soup.find(["h1", "h2"])
-        title = title_el.get_text(strip=True) if title_el else ""
-        if not title or not is_target_role(title): return
-        text = soup.get_text()
-        exp_min, exp_max = extract_experience(text)
-        save_job({"title": title, "company": company,
-            "location": "Unknown", "experience_min": exp_min, "experience_max": exp_max,
-            "job_type": extract_job_type(text[:1000]),
-            "url": url, "posted_at": "", "source": "google"})
-        print(f"  [Google] {title} @ {company}")
-    except Exception:
-        pass
-
 def crawl_google():
     if not SERPAPI_KEY:
         print("Skipping Google search — SERPAPI_KEY not set.")
         return
 
-    print("Crawling via Google (SerpApi)...")
-    queries = [
-        "site reliability engineer job opening 2025",
-        "devops engineer job opening hiring now",
-        "SRE engineer job posting apply",
-        "platform engineer job opening remote",
-    ]
-    # Job board domains to skip (they're listing pages, not individual jobs)
-    SKIP_DOMAINS = ["linkedin.com", "indeed.com", "glassdoor.com", "google.com",
-                    "ziprecruiter.com", "monster.com", "dice.com", "builtin.com"]
+    print("Crawling via Google Jobs (SerpApi)...")
+    queries = ["site reliability engineer", "devops engineer", "platform engineer", "SRE engineer"]
 
     for query in queries:
         try:
             resp = requests.get("https://serpapi.com/search", params={
+                "engine": "google_jobs",
                 "q": query,
                 "api_key": SERPAPI_KEY,
-                "engine": "google",
-                "num": 10,
+                "chips": "date_posted:week",
             }, timeout=15).json()
 
-            for result in resp.get("organic_results", []):
-                url = result.get("link", "")
-                title = result.get("title", "")
-                if any(d in url for d in SKIP_DOMAINS): continue
+            for j in resp.get("jobs_results", []):
+                title = j.get("title", "")
                 if not is_target_role(title): continue
-                company = result.get("displayed_link", "").split("//")[-1].split("/")[0].replace("www.", "")
-                scrape_job_page(url, company)
-                time.sleep(0.5)
+                company = j.get("company_name", "")
+                location = j.get("location", "Unknown")
+                desc = j.get("description", "")
+                exp_min, exp_max = extract_experience(desc)
+                url = ""
+                for opt in j.get("apply_options", []):
+                    url = opt.get("link", ""); break
+                if not url:
+                    url = f"https://www.google.com/search?q={title.replace(' ','+')}+{company.replace(' ','+')}"
+                posted = ""
+                det = j.get("detected_extensions", {})
+                if det.get("posted_at"): posted = det["posted_at"]
+                save_job({"title": title, "company": company, "location": location,
+                    "experience_min": exp_min, "experience_max": exp_max,
+                    "job_type": extract_job_type(location + " " + desc[:300]),
+                    "url": url, "posted_at": posted, "source": "google"})
+                print(f"  [Google Jobs] {title} @ {company}")
         except Exception as e:
-            print(f"Google search error: {e}")
+            print(f"Google Jobs error: {e}")
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
