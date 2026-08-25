@@ -1,7 +1,7 @@
 #!/bin/bash
 # Docker run (recommended — data persists across restarts):
 #   docker volume create job-crawler-data
-#   docker run -d --name job-crawler -p 8000:8000 \
+#   docker run -d --name job-crawler --network host \
 #     -v job-crawler-data:/app/data \
 #     -e SERPAPI_KEY=your_key job-crawler
 
