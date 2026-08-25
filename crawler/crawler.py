@@ -261,15 +261,16 @@ def crawl_google():
         return
 
     print("Crawling via Google Jobs (SerpApi)...")
-    queries = ["site reliability engineer", "devops engineer", "platform engineer", "SRE engineer"]
+    roles = ["site reliability engineer", "devops engineer", "platform engineer", "SRE"]
+    seen_urls = set()
 
-    for query in queries:
+    for role in roles:
         try:
             resp = requests.get("https://serpapi.com/search", params={
                 "engine": "google_jobs",
-                "q": query,
+                "q": role,
                 "api_key": SERPAPI_KEY,
-                "chips": "date_posted:week",
+                "chips": "date_posted:month",
             }, timeout=15).json()
 
             for j in resp.get("jobs_results", []):
@@ -279,21 +280,17 @@ def crawl_google():
                 location = j.get("location", "Unknown")
                 desc = j.get("description", "")
                 exp_min, exp_max = extract_experience(desc)
-                url = ""
-                for opt in j.get("apply_options", []):
-                    url = opt.get("link", ""); break
-                if not url:
-                    url = f"https://www.google.com/search?q={title.replace(' ','+')}+{company.replace(' ','+')}"
-                posted = ""
+                url = next((o.get("link","") for o in j.get("apply_options",[])), "")
+                if not url or url in seen_urls: continue
+                seen_urls.add(url)
                 det = j.get("detected_extensions", {})
-                if det.get("posted_at"): posted = det["posted_at"]
                 save_job({"title": title, "company": company, "location": location,
                     "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": extract_job_type(location + " " + desc[:300]),
-                    "url": url, "posted_at": posted, "source": "google"})
+                    "url": url, "posted_at": det.get("posted_at",""), "source": "google"})
                 print(f"  [Google Jobs] {title} @ {company}")
         except Exception as e:
-            print(f"Google Jobs error: {e}")
+            print(f"Google Jobs error ({role}): {e}")
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
