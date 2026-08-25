@@ -841,9 +841,10 @@
   loadCampaigns();
   openSearchTab();
   // auto-refresh on filter change
-  ['f-role','f-type','f-exp'].forEach(fid => {
+  ['f-role','f-type'].forEach(fid => {
     document.getElementById(fid).addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
   });
+  document.getElementById('f-exp').addEventListener('input', () => { refreshActiveSearchTab(); loadStats(); });
   document.querySelectorAll('#loc-list input').forEach(cb => {
     cb.addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
   });
