@@ -220,7 +220,6 @@
         </div>
         <span class="lbl">My Experience (years) — shows jobs I qualify for</span>
         <input type="number" id="f-exp" placeholder="e.g. 3" min="0" max="30"/>
-        <button class="btn btn-primary" onclick="openSearchTab()">🔍 Search Jobs</button>
         <button class="btn btn-ghost" onclick="clearFilters()">Clear Filters</button>
       </div>
     </div>
@@ -279,11 +278,30 @@
   const campaigns = {};
 
   async function loadCampaigns() {
-    const list = await fetch('/api/campaigns').then(r => r.json());
+    const [list, activeRes] = await Promise.all([
+      fetch('/api/campaigns').then(r => r.json()),
+      fetch('/api/crawl/active').then(r => r.json())
+    ]);
+    const activeCrawlIds = new Set(activeRes.active || []);
     list.forEach(c => {
-      campaigns[c.id] = {label: c.label, status: c.status, startTime: c.start_time, jobCount: c.job_count, tabId: null};
+      const isActive = activeCrawlIds.has(c.id);
+      campaigns[c.id] = {label: c.label, status: isActive ? 'running' : c.status, startTime: c.start_time, jobCount: c.job_count, tabId: null};
+      if (isActive) reconnectCrawl(c.id, c.label);
     });
     renderCampaigns();
+  }
+
+  function reconnectCrawl(crawlId, label) {
+    const id = makeId();
+    Object.keys(tabs).forEach(k => tabs[k].active = false);
+    tabs[id] = {type:'crawl', label, active:true, running:true, crawl_id: crawlId};
+    campaigns[crawlId].tabId = id;
+    renderTabs();
+    const panel = createPanel(id);
+    panel.innerHTML = buildCrawlPanelHTML(id, label);
+    panel.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
+    attachCrawlStream(id, crawlId);
   }
 
   function saveCampaigns() {} // no-op, DB is source of truth
@@ -298,7 +316,7 @@
       return;
     }
     el.innerHTML = entries.map(([id, c]) => `
-      <div class="campaign ${tabs[c.tabId]?.active ? 'active-camp' : ''}" onclick="${c.tabId ? `switchTab('${c.tabId}')` : ''}">
+      <div class="campaign ${tabs[c.tabId]?.active ? 'active-camp' : ''}" onclick="openCampaignTab('${id}')">
         <span class="cdot ${c.status}"></span>
         <div class="cinfo">
           <div class="cname">${c.label}</div>
@@ -308,14 +326,54 @@
       </div>`).join('');
   }
 
+  function openCampaignTab(campId) {
+    const c = campaigns[campId];
+    if (!c) return;
+    // if tab still alive, just switch
+    if (c.tabId && tabs[c.tabId]) { switchTab(c.tabId); return; }
+    // create a jobs-view tab for this campaign
+    const id = makeId();
+    Object.keys(tabs).forEach(k => tabs[k].active = false);
+    tabs[id] = {type:'search', label: c.label, active: true};
+    c.tabId = id;
+    renderTabs();
+    const panel = createPanel(id);
+    panel.innerHTML = `
+      <div class="manage-bar hidden" id="mbar-${id}">
+        <span class="sel-count" id="sel-count-${id}">0 selected</span>
+        <button class="btn-del btn-del-sel" onclick="deleteSelected('${id}')">🗑 Delete Selected</button>
+        <button class="btn-del btn-del-all" onclick="deleteAll('${id}')">🗑 Clear All Jobs</button>
+        <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="toggleSelectMode('${id}',false)">Cancel</button>
+      </div>
+      <div class="jobs-area">
+        <div class="jobs-header">
+          <h2>${c.label}</h2>
+          <div class="header-right">
+            <span class="cnt" id="cnt-${id}">Loading...</span>
+            <select class="sort-sel" onchange="resortTab('${id}',this.value)">
+              <option value="newest">🕐 Newest</option>
+              <option value="oldest">🕐 Oldest</option>
+              <option value="exp_asc">📈 Exp: Low→High</option>
+              <option value="exp_desc">📉 Exp: High→Low</option>
+              <option value="company">🏢 Company A-Z</option>
+            </select>
+            <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px" onclick="toggleSelectMode('${id}',true)">☑ Select</button>
+          </div>
+        </div>
+        <div class="grid" id="grid-${id}"></div>
+      </div>`;
+    panel.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
+    tabs[id].filters = {};  // no filter — show all jobs in DB
+    loadJobsIntoTab(id, 'newest');
+  }
+
   async function removeCampaign(id) {
     if (campaigns[id]?.tabId) closeTab(campaigns[id].tabId);
     await fetch(`/api/campaigns/${id}`, {method:'DELETE'});
     delete campaigns[id];
     renderCampaigns();
   }
-
-  // ── Stats filter ──────────────────────────────────────────────────────────
   function toggleStatFilter(type) {
     if (type === 'total') {
       activeStatFilter = null;
@@ -324,14 +382,39 @@
       activeStatFilter = activeStatFilter === type ? null : type;
       document.getElementById('f-type').value = activeStatFilter || '';
     }
-    // update active state
     ['total','remote','onsite','hybrid'].forEach(t => {
-      const el = document.getElementById('st-'+t);
-      el.classList.toggle('active',
-        t === 'total' ? activeStatFilter === null : activeStatFilter === t
-      );
+      document.getElementById('st-'+t).classList.toggle('active',
+        t === 'total' ? activeStatFilter === null : activeStatFilter === t);
     });
-    openSearchTab();
+    refreshActiveSearchTab();
+  }
+
+  // single persistent search tab id
+  let searchTabId = null;
+
+  function refreshActiveSearchTab() {
+    if (!searchTabId || !tabs[searchTabId]) {
+      openSearchTab();
+      return;
+    }
+    // switch to search tab
+    Object.keys(tabs).forEach(k => tabs[k].active = false);
+    tabs[searchTabId].active = true;
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById('panel-' + searchTabId);
+    if (panel) panel.classList.add('active');
+
+    const role = document.getElementById('f-role').value;
+    const type = document.getElementById('f-type').value;
+    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
+    const exp  = document.getElementById('f-exp').value;
+    const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
+    tabs[searchTabId].filters = {role, type, locs, exp};
+    tabs[searchTabId].label = label;
+    const h2 = document.querySelector(`#panel-${searchTabId} h2`);
+    if (h2) h2.textContent = label;
+    renderTabs();
+    loadJobsIntoTab(searchTabId, 'newest');
   }
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -375,7 +458,23 @@
     const exp  = document.getElementById('f-exp').value;
     const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
 
+    // reuse existing search tab if it exists
+    if (searchTabId && tabs[searchTabId]) {
+      tabs[searchTabId].filters = {role, type, locs, exp};
+      tabs[searchTabId].label = label;
+      Object.keys(tabs).forEach(k => tabs[k].active = false);
+      tabs[searchTabId].active = true;
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + searchTabId)?.classList.add('active');
+      const h2 = document.querySelector(`#panel-${searchTabId} h2`);
+      if (h2) h2.textContent = label;
+      renderTabs();
+      await loadJobsIntoTab(searchTabId, 'newest');
+      return;
+    }
+
     const id = makeId();
+    searchTabId = id;
     Object.keys(tabs).forEach(k => tabs[k].active=false);
     tabs[id] = {type:'search', label, active:true};
     renderTabs();
@@ -407,7 +506,6 @@
       </div>`;
     panel.classList.add('active');
     document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
-
     tabs[id].filters = {role, type, locs, exp};
     await loadJobsIntoTab(id, 'newest');
   }
@@ -454,22 +552,8 @@
     document.getElementById('opt-duration-row').style.display = this.checked ? 'flex' : 'none';
   });
 
-  async function startCrawl() {
-    const checked = [...document.querySelectorAll('.src-list input:checked')].map(i=>i.value);
-    if (!checked.length) { alert('Select at least one source.'); return; }
-
-    const continuous = document.getElementById('opt-continuous').checked;
-    const interval   = 0;
-    const sources    = checked.join(',');
-    const label      = checked.length===6 ? 'All Sources' : checked.slice(0,2).join(',')+( checked.length>2?'…':'');
-
-    const id = makeId();
-    Object.keys(tabs).forEach(k => tabs[k].active=false);
-    tabs[id] = {type:'crawl', label, active:true, running:true};
-    renderTabs();
-
-    const panel = createPanel(id);
-    panel.innerHTML = `
+  function buildCrawlPanelHTML(id, label) {
+    return `
       <div class="log-toggle" onclick="toggleLog('${id}')">
         <span id="log-label-${id}">▼ Live Log</span>
         <span id="log-status-${id}" style="color:var(--green)">● Running</span>
@@ -492,39 +576,17 @@
         </div>
         <div class="grid" id="grid-${id}"></div>
       </div>`;
-    panel.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
+  }
 
-    const params = new URLSearchParams({sources, continuous, interval});
-    const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
-    tabs[id].crawl_id = crawl_id;
-
-    // auto-stop timer
-    if (continuous) {
-      const dur = parseInt(document.getElementById('opt-duration').value) || 60;
-      const unit = parseInt(document.getElementById('opt-unit').value) || 60;
-      const ms = dur * unit * 1000;
-      tabs[id].autoStopTimer = setTimeout(() => {
-        appendLog(id, `⏱ Auto-stop triggered after ${dur} ${unit===60?'min':'hr'}`);
-        stopCrawl(id);
-      }, ms);
-    }
-
+  function attachCrawlStream(id, crawl_id) {
     const campId = crawl_id;
-    const startTime = new Date().toLocaleTimeString();
-    campaigns[campId] = {label: `${label} ${continuous?'(continuous)':''}`, status: 'running', tabId: id, startTime, jobCount: 0};
-    await fetch(`/api/campaigns?id=${encodeURIComponent(campId)}&label=${encodeURIComponent(campaigns[campId].label)}&status=running&start_time=${encodeURIComponent(startTime)}&job_count=0`, {method:'POST'});
-    renderCampaigns();
-
     const es = new EventSource(`/api/crawl/stream/${crawl_id}`);
     es.onmessage = async e => {
       const line = JSON.parse(e.data);
       appendLog(id, line);
-
       if (line.startsWith('__RUN_DONE__')) {
         await refreshCrawlJobs(id, 'newest');
         loadStats();
-        // update job count in campaign
         const jobs = await fetch('/api/jobs').then(r=>r.json());
         if (campaigns[campId]) {
           campaigns[campId].jobCount = jobs.length;
@@ -536,7 +598,7 @@
         es.close();
         tabs[id].running = false;
         if (campaigns[campId]) { campaigns[campId].status = 'done'; fetch(`/api/campaigns/${campId}?status=done`, {method:'PATCH'}); }
-        saveCampaigns(); renderTabs(); renderCampaigns();
+        renderTabs(); renderCampaigns();
         const st = document.getElementById('log-status-'+id);
         if (st) { st.textContent='● Stopped'; st.style.color='var(--muted)'; }
         const sb = document.getElementById('stop-'+id);
@@ -545,6 +607,46 @@
         loadStats();
       }
     };
+  }
+
+  async function startCrawl() {
+    const checked = [...document.querySelectorAll('.src-list input:checked')].map(i=>i.value);
+    if (!checked.length) { alert('Select at least one source.'); return; }
+
+    const continuous = document.getElementById('opt-continuous').checked;
+    const sources    = checked.join(',');
+    const label      = checked.length===6 ? 'All Sources' : checked.slice(0,2).join(',')+( checked.length>2?'…':'');
+
+    const id = makeId();
+    Object.keys(tabs).forEach(k => tabs[k].active=false);
+    tabs[id] = {type:'crawl', label, active:true, running:true};
+    renderTabs();
+
+    const panel = createPanel(id);
+    panel.innerHTML = buildCrawlPanelHTML(id, label);
+    panel.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
+
+    const params = new URLSearchParams({sources, continuous, interval: 0});
+    const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
+    tabs[id].crawl_id = crawl_id;
+
+    if (continuous) {
+      const dur = parseInt(document.getElementById('opt-duration').value) || 60;
+      const unit = parseInt(document.getElementById('opt-unit').value) || 60;
+      tabs[id].autoStopTimer = setTimeout(() => {
+        appendLog(id, `⏱ Auto-stop triggered after ${dur} ${unit===60?'min':'hr'}`);
+        stopCrawl(id);
+      }, dur * unit * 1000);
+    }
+
+    const campId = crawl_id;
+    const startTime = new Date().toLocaleTimeString();
+    campaigns[campId] = {label: `${label} ${continuous?'(continuous)':''}`, status: 'running', tabId: id, startTime, jobCount: 0};
+    await fetch(`/api/campaigns?id=${encodeURIComponent(campId)}&label=${encodeURIComponent(campaigns[campId].label)}&status=running&start_time=${encodeURIComponent(startTime)}&job_count=0`, {method:'POST'});
+    renderCampaigns();
+
+    attachCrawlStream(id, crawl_id);
   }
 
   async function refreshCrawlJobs(id, sort='newest') {
@@ -597,8 +699,9 @@
             ? `${j.experience_min}–${j.experience_max} yrs` : `${j.experience_min}+ yrs`)
         : null;
       const expPct = j.experience_max ? Math.min(100,(j.experience_max/15)*100) : 0;
-      let src='?'; try{src=new URL(j.url).hostname.replace('www.','').split('.')[0];}catch(_){}
-      const posted = j.posted_at ? new Date(j.posted_at).toLocaleDateString() : null;
+      const source = j.source || (() => { try{return new URL(j.url).hostname.replace('www.','').split('.')[0];}catch(_){return '?'} })();
+      const posted = j.posted_at ? (() => { try{return new Date(j.posted_at).toLocaleDateString();}catch(_){return j.posted_at.slice(0,10);} })() : null;
+      const crawled = j.crawled_at ? j.crawled_at.slice(0,10) : null;
       return `<div class="card" data-id="${j.id}" onclick="toggleCardSelect(this)">
         <input type="checkbox" class="card-check" data-id="${j.id}" onclick="event.stopPropagation();toggleCardSelect(this.closest('.card'))"/>
         <div class="card-top">
@@ -608,11 +711,12 @@
         <div class="meta">
           ${j.location?`<span class="mi">📍 ${j.location}</span>`:''}
           ${expText?`<span class="mi">🕐 ${expText}</span>`:''}
-          ${posted?`<span class="mi">📅 ${posted}</span>`:''}
+          ${posted?`<span class="mi">📅 Posted: ${posted}</span>`:''}
+          ${crawled?`<span class="mi">🔄 Crawled: ${crawled}</span>`:''}
         </div>
         ${expPct?`<div class="exp-bar"><div class="exp-fill" style="width:${expPct}%"></div></div>`:''}
         <div class="card-foot">
-          <span class="src-tag">${src}</span>
+          <span class="src-tag">📡 ${source}</span>
           <a class="apply" href="${j.url}" target="_blank" onclick="event.stopPropagation()">Apply →</a>
         </div>
       </div>`;
@@ -667,11 +771,38 @@
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   async function loadStats() {
-    const s = await fetch('/api/stats').then(r=>r.json());
-    document.getElementById('sn-total').textContent  = s.total;
-    document.getElementById('sn-remote').textContent = s.by_type?.remote||0;
-    document.getElementById('sn-onsite').textContent = s.by_type?.onsite||0;
-    document.getElementById('sn-hybrid').textContent = s.by_type?.hybrid||0;
+    const role = document.getElementById('f-role').value;
+    const exp  = document.getElementById('f-exp').value;
+    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
+    // build base params (no job_type so we can count each type)
+    const base = new URLSearchParams();
+    if (role) base.append('role', role);
+    if (exp)  base.append('experience', exp);
+
+    async function countType(type) {
+      if (!locs.length) {
+        const p = new URLSearchParams(base);
+        if (type) p.append('job_type', type);
+        return (await fetch('/api/jobs?'+p).then(r=>r.json())).length;
+      }
+      let all = [];
+      for (const loc of locs) {
+        const p = new URLSearchParams(base);
+        if (type) p.append('job_type', type);
+        p.append('location', loc);
+        all.push(...await fetch('/api/jobs?'+p).then(r=>r.json()));
+      }
+      const seen = new Set();
+      return all.filter(j => seen.has(j.id) ? false : seen.add(j.id)).length;
+    }
+
+    const [total, remote, onsite, hybrid] = await Promise.all([
+      countType(''), countType('remote'), countType('onsite'), countType('hybrid')
+    ]);
+    document.getElementById('sn-total').textContent  = total;
+    document.getElementById('sn-remote').textContent = remote;
+    document.getElementById('sn-onsite').textContent = onsite;
+    document.getElementById('sn-hybrid').textContent = hybrid;
   }
 
   function clearFilters() {
@@ -679,16 +810,24 @@
       const el=document.getElementById(id);
       el.tagName==='SELECT'?el.selectedIndex=0:el.value='';
     });
-    // deselect all location options
     [...document.querySelectorAll('#loc-list input')].forEach(o => o.checked = false);
     activeStatFilter=null;
     ['total','remote','onsite','hybrid'].forEach(t=>document.getElementById('st-'+t).classList.remove('active'));
+    refreshActiveSearchTab();
+    loadStats();
   }
 
   // init
   loadStats();
   loadCampaigns();
   openSearchTab();
+  // auto-refresh on filter change
+  ['f-role','f-type','f-exp'].forEach(fid => {
+    document.getElementById(fid).addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
+  });
+  document.querySelectorAll('#loc-list input').forEach(cb => {
+    cb.addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
+  });
 </script>
 </body>
 </html>

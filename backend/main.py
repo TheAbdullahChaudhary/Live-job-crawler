@@ -33,7 +33,8 @@ def get_jobs(
         q += " AND LOWER(location) LIKE ?"
         params.append(f"%{location.lower()}%")
     if experience is not None:
-        q += " AND experience_max IS NOT NULL AND experience_max <= ?"
+        # show jobs you qualify for: requirement must be <= your experience
+        q += " AND experience_min IS NOT NULL AND experience_min <= ?"
         params.append(experience)
 
     order = {
@@ -60,6 +61,7 @@ def trigger_crawl(
     def run():
         env = os.environ.copy()
         env["CRAWL_SOURCES"] = sources
+        env["DB_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "jobs.db"))
         run_count = 0
         while True:
             run_count += 1
@@ -88,6 +90,10 @@ def trigger_crawl(
 
     threading.Thread(target=run, daemon=True).start()
     return {"crawl_id": crawl_id}
+
+@app.get("/api/crawl/active")
+def active_crawls():
+    return {"active": [cid for cid, stopped in crawl_stop_flags.items() if not stopped]}
 
 @app.post("/api/crawl/stop/{crawl_id}")
 def stop_crawl(crawl_id: str):

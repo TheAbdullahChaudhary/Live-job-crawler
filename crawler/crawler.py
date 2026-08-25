@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3, re, os, time
 
-DB = os.path.join(os.path.dirname(__file__), "..", "jobs.db")
+DB = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "data", "jobs.db"))
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"}
 
 # Set your SerpApi key here or via env var SERPAPI_KEY (free: serpapi.com)
@@ -58,8 +58,8 @@ def save_job(job: dict):
         with sqlite3.connect(DB) as conn:
             conn.execute("""
                 INSERT OR IGNORE INTO jobs
-                (title, company, location, experience_min, experience_max, job_type, url, posted_at)
-                VALUES (:title, :company, :location, :experience_min, :experience_max, :job_type, :url, :posted_at)
+                (title, company, location, experience_min, experience_max, job_type, url, posted_at, source)
+                VALUES (:title, :company, :location, :experience_min, :experience_max, :job_type, :url, :posted_at, :source)
             """, job)
     except Exception as e:
         print(f"DB error: {e}")
@@ -80,7 +80,7 @@ def crawl_remotive():
                     "location": j.get("candidate_required_location", "Remote"),
                     "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": "remote", "url": j.get("url", ""),
-                    "posted_at": j.get("publication_date", "")})
+                    "posted_at": j.get("publication_date", ""), "source": "remotive"})
                 print(f"  [Remotive] {title}")
         except Exception as e:
             print(f"Remotive error: {e}")
@@ -100,7 +100,7 @@ def crawl_arbeitnow():
             save_job({"title": title, "company": j.get("company_name", ""),
                 "location": location, "experience_min": exp_min, "experience_max": exp_max,
                 "job_type": "remote" if j.get("remote") else extract_job_type(location),
-                "url": j.get("url", ""), "posted_at": ""})
+                "url": j.get("url", ""), "posted_at": "", "source": "arbeitnow"})
             print(f"  [Arbeitnow] {title}")
     except Exception as e:
         print(f"Arbeitnow error: {e}")
@@ -133,7 +133,7 @@ def crawl_weworkremotely():
                 exp_min, exp_max = extract_experience(text)
                 save_job({"title": title, "company": company, "location": location,
                     "experience_min": exp_min, "experience_max": exp_max,
-                    "job_type": "remote", "url": url, "posted_at": ""})
+                    "job_type": "remote", "url": url, "posted_at": "", "source": "weworkremotely"})
                 print(f"  [WWR] {title} @ {company}")
         except Exception as e:
             print(f"WWR error: {e}")
@@ -156,7 +156,7 @@ def crawl_greenhouse():
                 save_job({"title": title, "company": company.capitalize(),
                     "location": location, "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": extract_job_type(location + " " + text[:500]),
-                    "url": j.get("absolute_url", ""), "posted_at": j.get("updated_at", "")})
+                    "url": j.get("absolute_url", ""), "posted_at": j.get("updated_at", ""), "source": "greenhouse"})
                 print(f"  [Greenhouse/{company}] {title}")
             time.sleep(0.3)
         except Exception as e:
@@ -181,7 +181,7 @@ def crawl_lever():
                 save_job({"title": title, "company": company.capitalize(),
                     "location": location, "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": extract_job_type(location + " " + commitment),
-                    "url": j.get("hostedUrl", ""), "posted_at": ""})
+                    "url": j.get("hostedUrl", ""), "posted_at": "", "source": "lever"})
                 print(f"  [Lever/{company}] {title}")
             time.sleep(0.3)
         except Exception as e:
@@ -202,7 +202,7 @@ def crawl_jobicy():
             save_job({"title": title, "company": j.get("companyName", ""),
                 "location": j.get("jobGeo", "Remote"),
                 "experience_min": exp_min, "experience_max": exp_max,
-                "job_type": "remote", "url": j.get("url", ""), "posted_at": j.get("pubDate", "")})
+                "job_type": "remote", "url": j.get("url", ""), "posted_at": j.get("pubDate", ""), "source": "jobicy"})
             print(f"  [Jobicy] {title}")
     except Exception as e:
         print(f"Jobicy error: {e}")
@@ -222,7 +222,7 @@ def crawl_himalayas():
                 save_job({"title": title, "company": j.get("company", {}).get("name", ""),
                     "location": j.get("locationRestrictions", ["Remote"])[0] if j.get("locationRestrictions") else "Remote",
                     "experience_min": exp_min, "experience_max": exp_max,
-                    "job_type": "remote", "url": j.get("applicationLink", ""), "posted_at": j.get("createdAt", "")})
+                    "job_type": "remote", "url": j.get("applicationLink", ""), "posted_at": j.get("createdAt", ""), "source": "himalayas"})
                 print(f"  [Himalayas] {title}")
         except Exception as e:
             print(f"Himalayas error: {e}")
@@ -247,7 +247,7 @@ def crawl_wellfound():
                 exp_min, exp_max = extract_experience(text)
                 save_job({"title": title, "company": company, "location": "Unknown",
                     "experience_min": exp_min, "experience_max": exp_max,
-                    "job_type": extract_job_type(text), "url": url, "posted_at": ""})
+                    "job_type": extract_job_type(text), "url": url, "posted_at": "", "source": "wellfound"})
                 print(f"  [Wellfound] {title}")
         except Exception as e:
             print(f"Wellfound error: {e}")
@@ -264,7 +264,7 @@ def scrape_job_page(url: str, company: str):
         save_job({"title": title, "company": company,
             "location": "Unknown", "experience_min": exp_min, "experience_max": exp_max,
             "job_type": extract_job_type(text[:1000]),
-            "url": url, "posted_at": ""})
+            "url": url, "posted_at": "", "source": "google"})
         print(f"  [Google] {title} @ {company}")
     except Exception:
         pass
