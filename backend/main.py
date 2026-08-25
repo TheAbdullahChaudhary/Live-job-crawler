@@ -108,6 +108,39 @@ def stream_crawl(crawl_id: str):
                 break
     return StreamingResponse(generate(), media_type="text/event-stream")
 
+@app.get("/api/campaigns")
+def list_campaigns():
+    conn = get_conn()
+    # mark any still-running as stopped (server restarted)
+    conn.execute("UPDATE campaigns SET status='stopped' WHERE status='running'")
+    conn.commit()
+    return [dict(r) for r in conn.execute("SELECT * FROM campaigns ORDER BY created_at DESC").fetchall()]
+
+@app.post("/api/campaigns")
+def save_campaign(id: str = Query(...), label: str = Query(...), status: str = Query(...), start_time: str = Query(...), job_count: int = Query(0)):
+    conn = get_conn()
+    conn.execute("INSERT OR REPLACE INTO campaigns (id,label,status,start_time,job_count) VALUES (?,?,?,?,?)",
+                 (id, label, status, start_time, job_count))
+    conn.commit()
+    return {"ok": True}
+
+@app.patch("/api/campaigns/{cid}")
+def update_campaign(cid: str, status: str = Query(None), job_count: int = Query(None)):
+    conn = get_conn()
+    if status is not None:
+        conn.execute("UPDATE campaigns SET status=? WHERE id=?", (status, cid))
+    if job_count is not None:
+        conn.execute("UPDATE campaigns SET job_count=? WHERE id=?", (job_count, cid))
+    conn.commit()
+    return {"ok": True}
+
+@app.delete("/api/campaigns/{cid}")
+def delete_campaign(cid: str):
+    conn = get_conn()
+    conn.execute("DELETE FROM campaigns WHERE id=?", (cid,))
+    conn.commit()
+    return {"ok": True}
+
 @app.delete("/api/jobs")
 def delete_all_jobs():
     conn = get_conn()

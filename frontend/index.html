@@ -276,12 +276,17 @@
   let tabCounter = 0;
   const tabs = {};
   let activeStatFilter = null;
+  const campaigns = {};
 
-  // persist campaigns in localStorage; mark running→stopped on reload
-  const campaigns = JSON.parse(localStorage.getItem('campaigns') || '{}');
-  Object.values(campaigns).forEach(c => { if (c.status === 'running') c.status = 'stopped'; });
+  async function loadCampaigns() {
+    const list = await fetch('/api/campaigns').then(r => r.json());
+    list.forEach(c => {
+      campaigns[c.id] = {label: c.label, status: c.status, startTime: c.start_time, jobCount: c.job_count, tabId: null};
+    });
+    renderCampaigns();
+  }
 
-  function saveCampaigns() { localStorage.setItem('campaigns', JSON.stringify(campaigns)); }
+  function saveCampaigns() {} // no-op, DB is source of truth
 
   function makeId(){ return 't'+(++tabCounter); }
 
@@ -292,15 +297,22 @@
       el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px">No campaigns yet. Start a crawl.</div>';
       return;
     }
-    el.innerHTML = entries.reverse().map(([id, c]) => `
-      <div class="campaign ${tabs[c.tabId]?.active ? 'active-camp' : ''}" onclick="switchTab('${c.tabId}')">
+    el.innerHTML = entries.map(([id, c]) => `
+      <div class="campaign ${tabs[c.tabId]?.active ? 'active-camp' : ''}" onclick="${c.tabId ? `switchTab('${c.tabId}')` : ''}">
         <span class="cdot ${c.status}"></span>
         <div class="cinfo">
           <div class="cname">${c.label}</div>
           <div class="cmeta">${c.status==='running'?'Running…':c.status==='stopped'?'Stopped':'Done'} · ${c.jobCount} jobs · ${c.startTime}</div>
         </div>
-        <span class="cclose" onclick="event.stopPropagation();closeTab('${c.tabId}');delete campaigns['${id}'];saveCampaigns();renderCampaigns()">×</span>
+        <span class="cclose" onclick="event.stopPropagation();removeCampaign('${id}')">×</span>
       </div>`).join('');
+  }
+
+  async function removeCampaign(id) {
+    if (campaigns[id]?.tabId) closeTab(campaigns[id].tabId);
+    await fetch(`/api/campaigns/${id}`, {method:'DELETE'});
+    delete campaigns[id];
+    renderCampaigns();
   }
 
   // ── Stats filter ──────────────────────────────────────────────────────────
@@ -498,15 +510,10 @@
       }, ms);
     }
 
-    // register campaign
     const campId = crawl_id;
-    campaigns[campId] = {
-      label: `${label} ${continuous?'(continuous)':''}`,
-      status: 'running', tabId: id,
-      startTime: new Date().toLocaleTimeString(),
-      jobCount: 0
-    };
-    saveCampaigns();
+    const startTime = new Date().toLocaleTimeString();
+    campaigns[campId] = {label: `${label} ${continuous?'(continuous)':''}`, status: 'running', tabId: id, startTime, jobCount: 0};
+    await fetch(`/api/campaigns?id=${encodeURIComponent(campId)}&label=${encodeURIComponent(campaigns[campId].label)}&status=running&start_time=${encodeURIComponent(startTime)}&job_count=0`, {method:'POST'});
     renderCampaigns();
 
     const es = new EventSource(`/api/crawl/stream/${crawl_id}`);
@@ -519,12 +526,16 @@
         loadStats();
         // update job count in campaign
         const jobs = await fetch('/api/jobs').then(r=>r.json());
-        if (campaigns[campId]) { campaigns[campId].jobCount = jobs.length; saveCampaigns(); renderCampaigns(); }
+        if (campaigns[campId]) {
+          campaigns[campId].jobCount = jobs.length;
+          fetch(`/api/campaigns/${campId}?job_count=${jobs.length}`, {method:'PATCH'});
+          renderCampaigns();
+        }
       }
       if (line === '__DONE__') {
         es.close();
         tabs[id].running = false;
-        if (campaigns[campId]) campaigns[campId].status = 'done';
+        if (campaigns[campId]) { campaigns[campId].status = 'done'; fetch(`/api/campaigns/${campId}?status=done`, {method:'PATCH'}); }
         saveCampaigns(); renderTabs(); renderCampaigns();
         const st = document.getElementById('log-status-'+id);
         if (st) { st.textContent='● Stopped'; st.style.color='var(--muted)'; }
@@ -553,7 +564,7 @@
     if (crawl_id) {
       fetch(`/api/crawl/stop/${crawl_id}`,{method:'POST'});
       const camp = Object.values(campaigns).find(c=>c.tabId===id);
-      if (camp) { camp.status='stopped'; saveCampaigns(); renderCampaigns(); }
+      if (camp) { camp.status='stopped'; fetch(`/api/campaigns/${tabs[id].crawl_id}?status=stopped`,{method:'PATCH'}); saveCampaigns(); renderCampaigns(); }
     }
     if (tabs[id]?.autoStopTimer) clearTimeout(tabs[id].autoStopTimer);
   }
@@ -676,6 +687,7 @@
 
   // init
   loadStats();
+  loadCampaigns();
   openSearchTab();
 </script>
 </body>

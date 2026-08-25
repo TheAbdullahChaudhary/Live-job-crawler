@@ -12,15 +12,18 @@ def init_db():
         conn.execute("""
             CREATE TABLE IF NOT EXISTS jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                company TEXT,
-                location TEXT,
-                experience_min INTEGER,
-                experience_max INTEGER,
-                job_type TEXT,
-                url TEXT UNIQUE,
-                posted_at TEXT,
+                title TEXT, company TEXT, location TEXT,
+                experience_min INTEGER, experience_max INTEGER,
+                job_type TEXT, url TEXT UNIQUE, posted_at TEXT,
                 crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS campaigns (
+                id TEXT PRIMARY KEY,
+                label TEXT, status TEXT, start_time TEXT,
+                job_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
