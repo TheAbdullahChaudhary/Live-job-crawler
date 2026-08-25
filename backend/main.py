@@ -33,7 +33,7 @@ def get_jobs(
         q += " AND LOWER(location) LIKE ?"
         params.append(f"%{location.lower()}%")
     if experience is not None:
-        q += " AND (experience_max IS NULL OR experience_max <= ?)"
+        q += " AND experience_max IS NOT NULL AND experience_max <= ?"
         params.append(experience)
 
     order = {

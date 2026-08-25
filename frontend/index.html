@@ -130,6 +130,9 @@
     .campaign .cclose{opacity:.3;font-size:14px;flex-shrink:0}
     .campaign .cclose:hover{opacity:1;color:var(--red)}
     ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    .loc-item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;padding:2px 0}
+    .loc-item input{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0}
+    .loc-item:hover{color:var(--accent2)}
     .manage-bar{display:flex;align-items:center;gap:10px;padding:8px 22px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
     .manage-bar.hidden{display:none}
     .sel-count{font-size:13px;color:var(--muted);flex:1}
@@ -195,27 +198,26 @@
           <option value="hybrid">🔀 Hybrid</option>
         </select>
         <span class="lbl">Location (select multiple)</span>
-        <select id="f-loc" multiple size="5" style="height:110px">
-          <option value="remote">🌍 Remote / Worldwide</option>
-          <option value="united states">🇺🇸 United States</option>
-          <option value="united kingdom">🇬🇧 United Kingdom</option>
-          <option value="canada">🇨🇦 Canada</option>
-          <option value="germany">🇩🇪 Germany</option>
-          <option value="france">🇫🇷 France</option>
-          <option value="netherlands">🇳🇱 Netherlands</option>
-          <option value="australia">🇦🇺 Australia</option>
-          <option value="india">🇮🇳 India</option>
-          <option value="pakistan">🇵🇰 Pakistan</option>
-          <option value="singapore">🇸🇬 Singapore</option>
-          <option value="poland">🇵🇱 Poland</option>
-          <option value="spain">🇪🇸 Spain</option>
-          <option value="portugal">🇵🇹 Portugal</option>
-          <option value="brazil">🇧🇷 Brazil</option>
-          <option value="europe">🌍 Europe</option>
-          <option value="latin america">🌎 Latin America</option>
-          <option value="asia">🌏 Asia</option>
-        </select>
-        <span style="font-size:11px;color:var(--muted)">Ctrl/Cmd+click to select multiple</span>
+        <div id="loc-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+          <label class="loc-item"><input type="checkbox" value="remote"/> 🌍 Remote / Worldwide</label>
+          <label class="loc-item"><input type="checkbox" value="united states"/> 🇺🇸 United States</label>
+          <label class="loc-item"><input type="checkbox" value="united kingdom"/> 🇬🇧 United Kingdom</label>
+          <label class="loc-item"><input type="checkbox" value="canada"/> 🇨🇦 Canada</label>
+          <label class="loc-item"><input type="checkbox" value="germany"/> 🇩🇪 Germany</label>
+          <label class="loc-item"><input type="checkbox" value="france"/> 🇫🇷 France</label>
+          <label class="loc-item"><input type="checkbox" value="netherlands"/> 🇳🇱 Netherlands</label>
+          <label class="loc-item"><input type="checkbox" value="australia"/> 🇦🇺 Australia</label>
+          <label class="loc-item"><input type="checkbox" value="india"/> 🇮🇳 India</label>
+          <label class="loc-item"><input type="checkbox" value="pakistan"/> 🇵🇰 Pakistan</label>
+          <label class="loc-item"><input type="checkbox" value="singapore"/> 🇸🇬 Singapore</label>
+          <label class="loc-item"><input type="checkbox" value="poland"/> 🇵🇱 Poland</label>
+          <label class="loc-item"><input type="checkbox" value="spain"/> 🇪🇸 Spain</label>
+          <label class="loc-item"><input type="checkbox" value="portugal"/> 🇵🇹 Portugal</label>
+          <label class="loc-item"><input type="checkbox" value="brazil"/> 🇧🇷 Brazil</label>
+          <label class="loc-item"><input type="checkbox" value="europe"/> 🌍 Europe</label>
+          <label class="loc-item"><input type="checkbox" value="latin america"/> 🌎 Latin America</label>
+          <label class="loc-item"><input type="checkbox" value="asia"/> 🌏 Asia</label>
+        </div>
         <span class="lbl">My Experience (years) — shows jobs I qualify for</span>
         <input type="number" id="f-exp" placeholder="e.g. 3" min="0" max="30"/>
         <button class="btn btn-primary" onclick="openSearchTab()">🔍 Search Jobs</button>
@@ -274,7 +276,12 @@
   let tabCounter = 0;
   const tabs = {};
   let activeStatFilter = null;
-  const campaigns = {}; // id -> {label, status, tabId, startTime, jobCount}
+
+  // persist campaigns in localStorage; mark running→stopped on reload
+  const campaigns = JSON.parse(localStorage.getItem('campaigns') || '{}');
+  Object.values(campaigns).forEach(c => { if (c.status === 'running') c.status = 'stopped'; });
+
+  function saveCampaigns() { localStorage.setItem('campaigns', JSON.stringify(campaigns)); }
 
   function makeId(){ return 't'+(++tabCounter); }
 
@@ -292,7 +299,7 @@
           <div class="cname">${c.label}</div>
           <div class="cmeta">${c.status==='running'?'Running…':c.status==='stopped'?'Stopped':'Done'} · ${c.jobCount} jobs · ${c.startTime}</div>
         </div>
-        <span class="cclose" onclick="event.stopPropagation();closeTab('${c.tabId}');delete campaigns['${id}'];renderCampaigns()">×</span>
+        <span class="cclose" onclick="event.stopPropagation();closeTab('${c.tabId}');delete campaigns['${id}'];saveCampaigns();renderCampaigns()">×</span>
       </div>`).join('');
   }
 
@@ -352,7 +359,7 @@
   async function openSearchTab() {
     const role = document.getElementById('f-role').value;
     const type = document.getElementById('f-type').value;
-    const locs = [...document.getElementById('f-loc').selectedOptions].map(o => o.value);
+    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
     const exp  = document.getElementById('f-exp').value;
     const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
 
@@ -499,6 +506,7 @@
       startTime: new Date().toLocaleTimeString(),
       jobCount: 0
     };
+    saveCampaigns();
     renderCampaigns();
 
     const es = new EventSource(`/api/crawl/stream/${crawl_id}`);
@@ -511,13 +519,13 @@
         loadStats();
         // update job count in campaign
         const jobs = await fetch('/api/jobs').then(r=>r.json());
-        if (campaigns[campId]) { campaigns[campId].jobCount = jobs.length; renderCampaigns(); }
+        if (campaigns[campId]) { campaigns[campId].jobCount = jobs.length; saveCampaigns(); renderCampaigns(); }
       }
       if (line === '__DONE__') {
         es.close();
         tabs[id].running = false;
         if (campaigns[campId]) campaigns[campId].status = 'done';
-        renderTabs(); renderCampaigns();
+        saveCampaigns(); renderTabs(); renderCampaigns();
         const st = document.getElementById('log-status-'+id);
         if (st) { st.textContent='● Stopped'; st.style.color='var(--muted)'; }
         const sb = document.getElementById('stop-'+id);
@@ -545,7 +553,7 @@
     if (crawl_id) {
       fetch(`/api/crawl/stop/${crawl_id}`,{method:'POST'});
       const camp = Object.values(campaigns).find(c=>c.tabId===id);
-      if (camp) { camp.status='stopped'; renderCampaigns(); }
+      if (camp) { camp.status='stopped'; saveCampaigns(); renderCampaigns(); }
     }
     if (tabs[id]?.autoStopTimer) clearTimeout(tabs[id].autoStopTimer);
   }
@@ -661,7 +669,7 @@
       el.tagName==='SELECT'?el.selectedIndex=0:el.value='';
     });
     // deselect all location options
-    [...document.getElementById('f-loc').options].forEach(o => o.selected = false);
+    [...document.querySelectorAll('#loc-list input')].forEach(o => o.checked = false);
     activeStatFilter=null;
     ['total','remote','onsite','hybrid'].forEach(t=>document.getElementById('st-'+t).classList.remove('active'));
   }
