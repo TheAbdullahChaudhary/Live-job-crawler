@@ -221,6 +221,7 @@
         <span class="lbl">My Experience (years) — shows jobs I qualify for</span>
         <input type="number" id="f-exp" placeholder="e.g. 3" min="0" max="30"/>
         <button class="btn btn-ghost" onclick="clearFilters()">Clear Filters</button>
+        <button class="btn btn-ghost" style="color:#e55;border-color:#e55" onclick="clearAllJobs()">🗑 Clear All Jobs</button>
       </div>
     </div>
 
@@ -814,6 +815,13 @@
     document.getElementById('sn-remote').textContent = remote;
     document.getElementById('sn-onsite').textContent = onsite;
     document.getElementById('sn-hybrid').textContent = hybrid;
+  }
+
+  async function clearAllJobs() {
+    if (!confirm('Delete ALL jobs from the database?')) return;
+    await fetch('/api/jobs', {method:'DELETE'});
+    loadStats();
+    Object.keys(tabs).forEach(id => { if (tabs[id].type !== 'crawl') loadJobsIntoTab(id); });
   }
 
   function clearFilters() {
