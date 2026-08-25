@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
   <title>SRE & DevOps Jobs</title>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -410,16 +412,16 @@
 
     // update all open tabs with new filters (search + campaign)
     Object.entries(tabs).forEach(([id, t]) => {
-      if (t.type === 'search' || t.crawlId) {
-        t.filters = filters;
-        if (t.type === 'search') {
-          const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
-          t.label = label;
-          const h2 = document.querySelector(`#panel-${id} h2`);
-          if (h2) h2.textContent = label;
-        }
-        loadJobsIntoTab(id);
+      if (t.type !== 'search') return;
+      t.filters = filters;
+      if (!t.crawlId) {
+        // search tab — update label
+        const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
+        t.label = label;
+        const h2 = document.querySelector(`#panel-${id} h2`);
+        if (h2) h2.textContent = label;
       }
+      loadJobsIntoTab(id);
     });
 
     // if no search tab exists yet, open one
