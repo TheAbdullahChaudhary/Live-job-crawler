@@ -406,32 +406,29 @@
     const type = document.getElementById('f-type').value;
     const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
     const exp  = document.getElementById('f-exp').value;
+    const filters = {role, type, locs, exp};
 
-    // also update any open campaign tabs with new filters
+    // update all open tabs with new filters (search + campaign)
     Object.entries(tabs).forEach(([id, t]) => {
-      if (t.crawlId) {
-        t.filters = {role, type, locs, exp};
+      if (t.type === 'search' || t.crawlId) {
+        t.filters = filters;
+        if (t.type === 'search') {
+          const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
+          t.label = label;
+          const h2 = document.querySelector(`#panel-${id} h2`);
+          if (h2) h2.textContent = label;
+        }
         loadJobsIntoTab(id);
       }
     });
 
+    // if no search tab exists yet, open one
     if (!searchTabId || !tabs[searchTabId]) {
       openSearchTab();
       return;
     }
-    // switch to search tab
-    Object.keys(tabs).forEach(k => tabs[k].active = false);
-    tabs[searchTabId].active = true;
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    const panel = document.getElementById('panel-' + searchTabId);
-    if (panel) panel.classList.add('active');
-
-    const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
-    tabs[searchTabId].filters = {role, type, locs, exp};
-    tabs[searchTabId].label = label;
-    const h2 = document.querySelector(`#panel-${searchTabId} h2`);
-    if (h2) h2.textContent = label;
     renderTabs();
+  }
     loadJobsIntoTab(searchTabId, 'newest');
   }
 
