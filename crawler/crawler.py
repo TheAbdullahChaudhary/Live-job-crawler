@@ -7,6 +7,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chr
 
 # Set your SerpApi key here or via env var SERPAPI_KEY (free: serpapi.com)
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
+CRAWL_ID = os.environ.get("CRAWL_ID", None)
 
 TARGET_ROLES = ["site reliability", "sre", "devops", "platform engineer", "infrastructure engineer"]
 
@@ -54,13 +55,15 @@ def extract_job_type(text: str) -> str:
     return "unknown"
 
 def save_job(job: dict):
+    if CRAWL_ID:
+        job["crawl_id"] = CRAWL_ID
     try:
         with sqlite3.connect(DB) as conn:
             conn.execute("""
                 INSERT OR IGNORE INTO jobs
-                (title, company, location, experience_min, experience_max, job_type, url, posted_at, source)
-                VALUES (:title, :company, :location, :experience_min, :experience_max, :job_type, :url, :posted_at, :source)
-            """, job)
+                (title, company, location, experience_min, experience_max, job_type, url, posted_at, source, crawl_id)
+                VALUES (:title, :company, :location, :experience_min, :experience_max, :job_type, :url, :posted_at, :source, :crawl_id)
+            """, {**job, "crawl_id": job.get("crawl_id")})
     except Exception as e:
         print(f"DB error: {e}")
 

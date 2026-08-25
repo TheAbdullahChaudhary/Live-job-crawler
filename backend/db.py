@@ -16,13 +16,14 @@ def init_db():
                 title TEXT, company TEXT, location TEXT,
                 experience_min INTEGER, experience_max INTEGER,
                 job_type TEXT, url TEXT UNIQUE, posted_at TEXT,
-                source TEXT,
+                source TEXT, crawl_id TEXT,
                 crawled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # add source column if missing (migration)
-        try: conn.execute("ALTER TABLE jobs ADD COLUMN source TEXT")
-        except: pass
+        # migrations
+        for col in ["source TEXT", "crawl_id TEXT"]:
+            try: conn.execute(f"ALTER TABLE jobs ADD COLUMN {col}")
+            except: pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS campaigns (
                 id TEXT PRIMARY KEY,

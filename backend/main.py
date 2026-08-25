@@ -17,7 +17,8 @@ def get_jobs(
     experience: int = Query(None),
     job_type: str = Query(None),
     location: str = Query(None),
-    sort: str = Query("newest", description="newest|oldest|exp_asc|exp_desc|company"),
+    crawl_id: str = Query(None),
+    sort: str = Query("newest"),
 ):
     conn = get_conn()
     q = "SELECT * FROM jobs WHERE 1=1"
@@ -32,6 +33,9 @@ def get_jobs(
     if location:
         q += " AND LOWER(location) LIKE ?"
         params.append(f"%{location.lower()}%")
+    if crawl_id:
+        q += " AND crawl_id = ?"
+        params.append(crawl_id)
     if experience is not None:
         # show jobs you qualify for: requirement must be <= your experience
         q += " AND experience_min IS NOT NULL AND experience_min <= ?"
@@ -62,6 +66,7 @@ def trigger_crawl(
         env = os.environ.copy()
         env["CRAWL_SOURCES"] = sources
         env["DB_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "jobs.db"))
+        env["CRAWL_ID"] = crawl_id
         run_count = 0
         while True:
             run_count += 1

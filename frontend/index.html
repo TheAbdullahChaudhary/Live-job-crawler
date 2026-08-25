@@ -364,7 +364,8 @@
       </div>`;
     panel.classList.add('active');
     document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
-    tabs[id].filters = {};  // no filter — show all jobs in DB
+    tabs[id].filters = {};
+    tabs[id].crawlId = campId;  // filter jobs to this campaign
     loadJobsIntoTab(id, 'newest');
   }
 
@@ -519,6 +520,7 @@
     const params = new URLSearchParams({sort});
     if (f.role) params.append('role', f.role);
     if (f.type) params.append('job_type', f.type);
+    if (tabs[id]?.crawlId) params.append('crawl_id', tabs[id].crawlId);
     // fetch once per location then merge+dedupe
     if (f.locs && f.locs.length) {
       let all = [];
@@ -584,26 +586,32 @@
     es.onmessage = async e => {
       const line = JSON.parse(e.data);
       appendLog(id, line);
-      if (line.startsWith('__RUN_DONE__')) {
-        await refreshCrawlJobs(id, 'newest');
-        loadStats();
-        const jobs = await fetch('/api/jobs').then(r=>r.json());
+
+      async function updateCampJobCount() {
+        const jobs = await fetch(`/api/jobs?crawl_id=${campId}`).then(r=>r.json());
         if (campaigns[campId]) {
           campaigns[campId].jobCount = jobs.length;
           fetch(`/api/campaigns/${campId}?job_count=${jobs.length}`, {method:'PATCH'});
           renderCampaigns();
         }
       }
+
+      if (line.startsWith('__RUN_DONE__')) {
+        await refreshCrawlJobs(id, 'newest', campId);
+        loadStats();
+        await updateCampJobCount();
+      }
       if (line === '__DONE__') {
         es.close();
         tabs[id].running = false;
+        await updateCampJobCount();
         if (campaigns[campId]) { campaigns[campId].status = 'done'; fetch(`/api/campaigns/${campId}?status=done`, {method:'PATCH'}); }
         renderTabs(); renderCampaigns();
         const st = document.getElementById('log-status-'+id);
         if (st) { st.textContent='● Stopped'; st.style.color='var(--muted)'; }
         const sb = document.getElementById('stop-'+id);
         if (sb) sb.remove();
-        await refreshCrawlJobs(id, 'newest');
+        await refreshCrawlJobs(id, 'newest', campId);
         loadStats();
       }
     };
@@ -649,10 +657,11 @@
     attachCrawlStream(id, crawl_id);
   }
 
-  async function refreshCrawlJobs(id, sort='newest') {
-    const jobs = await fetch('/api/jobs?sort='+sort).then(r=>r.json());
+  async function refreshCrawlJobs(id, sort='newest', crawlId=null) {
+    const url = '/api/jobs?sort='+sort + (crawlId ? '&crawl_id='+crawlId : '');
+    const jobs = await fetch(url).then(r=>r.json());
     const cnt = document.getElementById('cnt-'+id);
-    if (cnt) cnt.textContent = `${jobs.length} total jobs`;
+    if (cnt) cnt.textContent = `${jobs.length} jobs`;
     const grid = document.getElementById('grid-'+id);
     if (grid) grid.innerHTML = renderCards(jobs);
   }
