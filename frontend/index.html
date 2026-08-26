@@ -417,6 +417,7 @@
 
     // update all open tabs with new filters (search + campaign)
     Object.entries(tabs).forEach(([id, t]) => {
+      if (t.type === 'crawl') { refreshCrawlJobs(id, 'newest', t.crawl_id); return; }
       if (t.type !== 'search') return;
       t.filters = filters;
       if (!t.crawlId) {
@@ -677,7 +678,10 @@
   }
 
   async function refreshCrawlJobs(id, sort='newest', crawlId=null) {
-    const url = '/api/jobs?sort='+sort + (crawlId ? '&crawl_id='+crawlId : '');
+    const exp = document.getElementById('f-exp').value;
+    let url = '/api/jobs?sort='+sort;
+    if (crawlId) url += '&crawl_id='+crawlId;
+    if (exp) url += '&experience='+exp;
     const jobs = await fetch(url).then(r=>r.json());
     const cnt = document.getElementById('cnt-'+id);
     if (cnt) cnt.textContent = `${jobs.length} jobs`;
