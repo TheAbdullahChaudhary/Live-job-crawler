@@ -367,7 +367,12 @@
       </div>`;
     panel.classList.add('active');
     document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
-    tabs[id].filters = {};
+    tabs[id].filters = {
+      role: document.getElementById('f-role').value,
+      type: document.getElementById('f-type').value,
+      locs: [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value),
+      exp:  document.getElementById('f-exp').value,
+    };
     tabs[id].crawlId = campId;
     // sync sidebar filters into this tab
     tabs[id].filters = {
@@ -415,7 +420,6 @@
       if (t.type !== 'search') return;
       t.filters = filters;
       if (!t.crawlId) {
-        // search tab — update label
         const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
         t.label = label;
         const h2 = document.querySelector(`#panel-${id} h2`);
