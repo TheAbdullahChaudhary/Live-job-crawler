@@ -109,8 +109,8 @@
     /* jobs area */
     .jobs-area{padding:24px 28px;flex:1;overflow-y:auto}
     .jobs-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
-    .jobs-header h2{font-size:16px;font-weight:700;letter-spacing:-.02em}
-    .header-right{display:flex;align-items:center;gap:10px}
+    .jobs-header h2{font-size:16px;font-weight:700;letter-spacing:-.02em;min-width:0;flex:1}
+    .header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
     .cnt{font-size:12px;color:var(--muted);background:var(--surface2);padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-weight:500}
     .sort-sel{padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;cursor:pointer;font-family:inherit;transition:border-color .15s}
     .sort-sel:focus{border-color:var(--accent)}
@@ -174,10 +174,38 @@
     .select-mode .card-check{display:block}
     .select-mode .card{padding-left:36px}
     .card.selected{border-color:var(--accent);background:#7c3aed0d}
-    @media(max-width:768px){.app{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
+
+    /* ── Mobile hamburger ── */
+    .mob-toggle{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:#00000080;z-index:99}
+    .sidebar-overlay.open{display:block}
+
+    /* ── Responsive ── */
+    @media(max-width:900px){
+      .app{grid-template-columns:1fr}
+      .sidebar{position:fixed;left:-290px;top:0;height:100vh;z-index:100;transition:left .25s ease;width:280px}
+      .sidebar.open{left:0}
+      .mob-toggle{display:block}
+      .topbar{padding:0 14px}
+      .topbar-title{font-size:12px}
+      .jobs-area{padding:16px 14px}
+      .jobs-header{flex-direction:column;align-items:flex-start;gap:10px}
+      .header-right{width:100%;flex-wrap:wrap;gap:8px}
+      .header-right .sort-sel,.header-right .btn-del{flex:1;min-width:0}
+      .grid{grid-template-columns:1fr}
+      .manage-bar{padding:8px 14px}
+      .tabs-bar{padding:0 8px}
+      .tab{padding:11px 10px;font-size:11px}
+    }
+    @media(max-width:480px){
+      .topbar-sub{display:none}
+      #sn-onsite,#sn-hybrid{display:none}
+      .cnt{font-size:11px}
+    }
   </style>
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
 <div class="app">
 
   <!-- ── Sidebar ── -->
@@ -279,7 +307,10 @@
   <!-- ── Main ── -->
   <main class="main">
     <div class="topbar">
-      <div><div class="topbar-title">SRE & DevOps Job Board</div><div class="topbar-sub">Real-time crawler · <span id="sn-total">—</span> jobs indexed</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="mob-toggle" onclick="toggleSidebar()">☰</button>
+        <div><div class="topbar-title">SRE & DevOps Job Board</div><div class="topbar-sub">Real-time crawler · <span id="sn-total">—</span></div></div>
+      </div>
       <div style="display:flex;gap:8px;align-items:center">
         <div id="sn-remote" onclick="toggleStatFilter('remote')" style="font-size:11px;color:var(--green);background:#10b98115;border:1px solid #10b98130;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#10b98125'" onmouseout="this.style.background='#10b98115'"></div>
         <div id="sn-onsite" onclick="toggleStatFilter('onsite')" style="font-size:11px;color:var(--blue);background:#3b82f615;border:1px solid #3b82f630;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#3b82f625'" onmouseout="this.style.background='#3b82f615'"></div>
@@ -846,7 +877,7 @@
     const [total, remote, onsite, hybrid] = await Promise.all([
       countType(''), countType('remote'), countType('onsite'), countType('hybrid')
     ]);
-    document.getElementById('sn-total').textContent  = total + ' jobs indexed';
+    document.getElementById('sn-total').textContent  = total + ' jobs';
     document.getElementById('sn-remote').textContent = remote + ' Remote';
     document.getElementById('sn-onsite').textContent = onsite + ' Onsite';
     document.getElementById('sn-hybrid').textContent = hybrid + ' Hybrid';
@@ -882,6 +913,11 @@
   document.querySelectorAll('#loc-list input').forEach(cb => {
     cb.addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
   });
+
+  function toggleSidebar() {
+    document.querySelector('.sidebar').classList.toggle('open');
+    document.getElementById('sidebar-overlay').classList.toggle('open');
+  }
 </script>
 </body>
 </html>
