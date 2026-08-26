@@ -497,7 +497,7 @@
     const id = makeId();
     searchTabId = id;
     Object.keys(tabs).forEach(k => tabs[k].active=false);
-    tabs[id] = {type:'search', label, active:true};
+    tabs[id] = {type:'search', label, active:true, filters: {role, type, locs, exp}};
     renderTabs();
 
     const panel = createPanel(id);
