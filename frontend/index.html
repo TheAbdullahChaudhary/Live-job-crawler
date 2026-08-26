@@ -20,11 +20,13 @@
     .app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
 
     /* ── sidebar ── */
-    .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;overflow-y:auto;scrollbar-width:thin}
+    .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;scrollbar-width:thin}
+    .sidebar-inner{display:flex;flex-direction:column;gap:20px;padding:20px 16px;flex:1}
     .logo{display:flex;align-items:center;gap:12px;padding:4px 0 8px}
     .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#6d28d9);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 20px var(--accent-glow)}
     .logo h1{font-size:14px;font-weight:700;letter-spacing:-.01em}
     .logo small{font-size:11px;color:var(--muted);display:block;margin-top:1px}
+    .sidebar-divider{height:1px;background:var(--border);margin:0 -16px}
     .sec{font-size:10px;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
     .sec::after{content:'';flex:1;height:1px;background:var(--border)}
 
@@ -72,6 +74,9 @@
 
     /* ── main ── */
     .main{display:flex;flex-direction:column;min-height:100vh;background:var(--bg)}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .topbar-title{font-size:13px;font-weight:600;color:var(--text)}
+    .topbar-sub{font-size:11px;color:var(--muted);margin-top:1px}
 
     /* tabs */
     .tabs-bar{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
@@ -177,28 +182,10 @@
 
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
+   <div class="sidebar-inner">
     <div class="logo">
       <div class="logo-icon">⚙️</div>
       <div><h1>DevOps Jobs</h1><small>Live job crawler</small></div>
-    </div>
-
-    <!-- Stats as filter buttons -->
-    <div>
-      <div class="sec">Overview (click to filter)</div>
-      <div class="stats-grid">
-        <div class="stat" id="st-total" onclick="toggleStatFilter('total')">
-          <div class="n" id="sn-total">—</div><div class="l">Total Jobs</div>
-        </div>
-        <div class="stat s-remote" id="st-remote" onclick="toggleStatFilter('remote')">
-          <div class="n" id="sn-remote">—</div><div class="l">Remote</div>
-        </div>
-        <div class="stat s-onsite" id="st-onsite" onclick="toggleStatFilter('onsite')">
-          <div class="n" id="sn-onsite">—</div><div class="l">Onsite</div>
-        </div>
-        <div class="stat s-hybrid" id="st-hybrid" onclick="toggleStatFilter('hybrid')">
-          <div class="n" id="sn-hybrid">—</div><div class="l">Hybrid</div>
-        </div>
-      </div>
     </div>
 
     <!-- Filters -->
@@ -286,10 +273,19 @@
         <button class="btn btn-crawl" onclick="startCrawl()">↻ Start Crawl</button>
       </div>
     </div>
+  </div><!-- /sidebar-inner -->
   </aside>
 
   <!-- ── Main ── -->
   <main class="main">
+    <div class="topbar">
+      <div><div class="topbar-title">SRE & DevOps Job Board</div><div class="topbar-sub">Real-time crawler · <span id="sn-total">—</span> jobs indexed</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="sn-remote" onclick="toggleStatFilter('remote')" style="font-size:11px;color:var(--green);background:#10b98115;border:1px solid #10b98130;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#10b98125'" onmouseout="this.style.background='#10b98115'"></div>
+        <div id="sn-onsite" onclick="toggleStatFilter('onsite')" style="font-size:11px;color:var(--blue);background:#3b82f615;border:1px solid #3b82f630;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#3b82f625'" onmouseout="this.style.background='#3b82f615'"></div>
+        <div id="sn-hybrid" onclick="toggleStatFilter('hybrid')" style="font-size:11px;color:var(--yellow);background:#f59e0b15;border:1px solid #f59e0b30;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#f59e0b25'" onmouseout="this.style.background='#f59e0b15'"></div>
+      </div>
+    </div>
     <div class="tabs-bar" id="tabs-bar"></div>
     <div id="panels" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
   </main>
@@ -419,10 +415,6 @@
       activeStatFilter = activeStatFilter === type ? null : type;
       document.getElementById('f-type').value = activeStatFilter || '';
     }
-    ['total','remote','onsite','hybrid'].forEach(t => {
-      document.getElementById('st-'+t).classList.toggle('active',
-        t === 'total' ? activeStatFilter === null : activeStatFilter === t);
-    });
     refreshActiveSearchTab();
   }
 
@@ -854,10 +846,10 @@
     const [total, remote, onsite, hybrid] = await Promise.all([
       countType(''), countType('remote'), countType('onsite'), countType('hybrid')
     ]);
-    document.getElementById('sn-total').textContent  = total;
-    document.getElementById('sn-remote').textContent = remote;
-    document.getElementById('sn-onsite').textContent = onsite;
-    document.getElementById('sn-hybrid').textContent = hybrid;
+    document.getElementById('sn-total').textContent  = total + ' jobs indexed';
+    document.getElementById('sn-remote').textContent = remote + ' Remote';
+    document.getElementById('sn-onsite').textContent = onsite + ' Onsite';
+    document.getElementById('sn-hybrid').textContent = hybrid + ' Hybrid';
   }
 
   async function clearAllJobs() {
@@ -874,7 +866,6 @@
     });
     [...document.querySelectorAll('#loc-list input')].forEach(o => o.checked = false);
     activeStatFilter=null;
-    ['total','remote','onsite','hybrid'].forEach(t=>document.getElementById('st-'+t).classList.remove('active'));
     refreshActiveSearchTab();
     loadStats();
   }
