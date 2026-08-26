@@ -51,10 +51,13 @@ def get_jobs(
         params.append(experience)
 
     order = {
-        "newest":   "crawled_at DESC",
-        "oldest":   "crawled_at ASC",
-        "exp_asc":  "experience_min ASC NULLS LAST",
-        "exp_desc": "experience_max DESC NULLS LAST",
+        "newest":      "crawled_at DESC",
+        "oldest":      "crawled_at ASC",
+        "exp_asc":     "experience_min ASC NULLS LAST",
+        "exp_desc":    "experience_max DESC NULLS LAST",
+        "posted_desc": "posted_at DESC NULLS LAST",
+        "posted_asc":  "posted_at ASC NULLS LAST",
+        "company":     "company ASC",
         "company":  "company ASC",
     }.get(sort, "crawled_at DESC")
     q += f" ORDER BY {order}"
