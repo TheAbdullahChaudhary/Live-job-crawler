@@ -3,10 +3,19 @@ sys.path.insert(0, os.path.dirname(__file__))
 from db import get_conn
 from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse, Response
 import subprocess, queue, json, time
 
 app = FastAPI()
+
+@app.get("/", include_in_schema=False)
+def root():
+    with open("frontend/index.html", "rb") as f:
+        content = f.read()
+    return Response(content, media_type="text/html", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache", "Expires": "0"
+    })
 
 crawl_queues: dict[str, queue.Queue] = {}
 crawl_stop_flags: dict[str, bool] = {}
