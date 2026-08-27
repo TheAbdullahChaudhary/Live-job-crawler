@@ -703,6 +703,10 @@
     document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
 
     const params = new URLSearchParams({sources, continuous, interval: 0});
+    const exp  = document.getElementById('f-exp').value;
+    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o=>o.value);
+    if (exp)        params.append('experience', exp);
+    if (locs.length) params.append('locations', locs.join(','));
     const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
     tabs[id].crawl_id = crawl_id;
 

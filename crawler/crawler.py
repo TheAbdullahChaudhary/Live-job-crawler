@@ -261,36 +261,66 @@ def crawl_google():
         return
 
     print("Crawling via Google Jobs (SerpApi)...")
+
+    # Read crawl-time params from env
+    max_exp   = os.environ.get("CRAWL_EXP")       # e.g. "4"
+    locations = [l.strip() for l in os.environ.get("CRAWL_LOCS", "").split(",") if l.strip()]
+    if not locations:
+        locations = ["remote", "united states", "united kingdom", "canada"]
+
     roles = ["site reliability engineer", "devops engineer", "platform engineer", "SRE"]
     seen_urls = set()
 
     for role in roles:
-        try:
-            resp = requests.get("https://serpapi.com/search", params={
-                "engine": "google_jobs",
-                "q": role,
-                "api_key": SERPAPI_KEY,
-                "chips": "date_posted:month",
-            }, timeout=15).json()
+        for loc in locations:
+            # Build a smart query: role + remote preference + location
+            loc_lower = loc.lower()
+            if loc_lower in ("remote", "worldwide", "anywhere"):
+                q = f"{role} remote"
+            else:
+                q = f"{role} remote OR hybrid {loc}"
 
-            for j in resp.get("jobs_results", []):
-                title = j.get("title", "")
-                if not is_target_role(title): continue
-                company = j.get("company_name", "")
-                location = j.get("location", "Unknown")
-                desc = j.get("description", "")
-                exp_min, exp_max = extract_experience(desc)
-                url = next((o.get("link","") for o in j.get("apply_options",[])), "")
-                if not url or url in seen_urls: continue
-                seen_urls.add(url)
-                det = j.get("detected_extensions", {})
-                save_job({"title": title, "company": company, "location": location,
-                    "experience_min": exp_min, "experience_max": exp_max,
-                    "job_type": extract_job_type(location + " " + desc[:300]),
-                    "url": url, "posted_at": det.get("posted_at",""), "source": "google"})
-                print(f"  [Google Jobs] {title} @ {company}")
-        except Exception as e:
-            print(f"Google Jobs error ({role}): {e}")
+            # Append experience hint to narrow results
+            if max_exp:
+                exp_i = int(max_exp)
+                if exp_i <= 2:
+                    q += " junior entry level"
+                elif exp_i <= 4:
+                    q += " mid level"
+                elif exp_i <= 6:
+                    q += " senior"
+
+            try:
+                resp = requests.get("https://serpapi.com/search", params={
+                    "engine": "google_jobs",
+                    "q": q,
+                    "api_key": SERPAPI_KEY,
+                    "chips": "date_posted:month",
+                    "ltype": "1",   # remote jobs hint
+                }, timeout=15).json()
+
+                for j in resp.get("jobs_results", []):
+                    title = j.get("title", "")
+                    if not is_target_role(title): continue
+                    company = j.get("company_name", "")
+                    location = j.get("location", "Unknown")
+                    desc = j.get("description", "")
+                    exp_min, exp_max = extract_experience(desc + " " + title)
+                    # Skip if job requires more experience than user has
+                    if max_exp and exp_min is not None and exp_min > int(max_exp):
+                        continue
+                    url = next((o.get("link","") for o in j.get("apply_options",[])), "")
+                    if not url or url in seen_urls: continue
+                    seen_urls.add(url)
+                    det = j.get("detected_extensions", {})
+                    job_type = extract_job_type(location + " " + desc[:300])
+                    save_job({"title": title, "company": company, "location": location,
+                        "experience_min": exp_min, "experience_max": exp_max,
+                        "job_type": job_type,
+                        "url": url, "posted_at": det.get("posted_at",""), "source": "google"})
+                    print(f"  [Google Jobs] {title} @ {company}")
+            except Exception as e:
+                print(f"Google Jobs error ({role} / {loc}): {e}")
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
