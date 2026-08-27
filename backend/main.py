@@ -28,6 +28,7 @@ def get_jobs(
     location: str = Query(None),
     crawl_id: str = Query(None),
     sort: str = Query("newest"),
+    days: int = Query(None),
 ):
     conn = get_conn()
     q = "SELECT * FROM jobs WHERE 1=1"
@@ -46,9 +47,11 @@ def get_jobs(
         q += " AND crawl_id = ?"
         params.append(crawl_id)
     if experience is not None:
-        # show jobs you qualify for: requirement must be <= your experience
         q += " AND experience_min IS NOT NULL AND experience_min <= ?"
         params.append(experience)
+    if days is not None:
+        q += " AND crawled_at >= date('now', ?)"
+        params.append(f"-{days} days")
 
     order = {
         "newest":      "crawled_at DESC",

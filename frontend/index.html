@@ -217,6 +217,15 @@
     <div>
       <div class="sec">Search Filters</div>
       <div class="fg">
+        <span class="lbl">Posted Within</span>
+        <select id="f-days">
+          <option value="">Any time</option>
+          <option value="1">Last 24 hours</option>
+          <option value="3">Last 3 days</option>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
         <span class="lbl">Role</span>
         <select id="f-role">
           <option value="">All Roles</option>
@@ -419,6 +428,7 @@
       type: document.getElementById('f-type').value,
       locs: [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value),
       exp:  document.getElementById('f-exp').value,
+      days: document.getElementById('f-days').value,
     };
     tabs[id].crawlId = campId;
     // sync sidebar filters into this tab
@@ -427,6 +437,7 @@
       type: document.getElementById('f-type').value,
       locs: [...document.querySelectorAll('#loc-list input:checked')].map(o=>o.value),
       exp:  document.getElementById('f-exp').value,
+      days: document.getElementById('f-days').value,
     };
     loadJobsIntoTab(id, 'newest');
   }
@@ -456,7 +467,8 @@
     const type = document.getElementById('f-type').value;
     const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
     const exp  = document.getElementById('f-exp').value;
-    const filters = {role, type, locs, exp};
+    const days = document.getElementById('f-days').value;
+    const filters = {role, type, locs, exp, days};
 
     // update all open tabs with new filters (search + campaign)
     Object.entries(tabs).forEach(([id, t]) => {
@@ -524,7 +536,7 @@
 
     // reuse existing search tab if it exists
     if (searchTabId && tabs[searchTabId]) {
-      tabs[searchTabId].filters = {role, type, locs, exp};
+      tabs[searchTabId].filters = {role, type, locs, exp, days: document.getElementById('f-days').value};
       tabs[searchTabId].label = label;
       Object.keys(tabs).forEach(k => tabs[k].active = false);
       tabs[searchTabId].active = true;
@@ -540,7 +552,7 @@
     const id = makeId();
     searchTabId = id;
     Object.keys(tabs).forEach(k => tabs[k].active=false);
-    tabs[id] = {type:'search', label, active:true, filters: {role, type, locs, exp}};
+    tabs[id] = {type:'search', label, active:true, filters: {role, type, locs, exp, days: document.getElementById('f-days').value}};
     renderTabs();
 
     const panel = createPanel(id);
@@ -572,7 +584,7 @@
       </div>`;
     panel.classList.add('active');
     document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
-    tabs[id].filters = {role, type, locs, exp};
+    tabs[id].filters = {role, type, locs, exp, days: document.getElementById('f-days').value};
     await loadJobsIntoTab(id, 'newest');
   }
 
@@ -593,6 +605,7 @@
         const p = new URLSearchParams(params);
         p.append('location', loc);
         if (f.exp) p.append('experience', f.exp);
+        if (f.days) p.append('days', f.days);
         const jobs = await fetch('/api/jobs?'+p).then(r=>r.json());
         all.push(...jobs);
       }
@@ -606,6 +619,7 @@
       return;
     }
     if (f.exp)  params.append('experience', f.exp);
+    if (f.days) params.append('days', f.days);
     const jobs = await fetch('/api/jobs?'+params).then(r=>r.json());
     const cnt = document.getElementById('cnt-'+id);
     if (cnt) cnt.textContent = `${jobs.length} jobs found`;
@@ -898,7 +912,7 @@
   }
 
   function clearFilters() {
-    ['f-role','f-type','f-exp'].forEach(id=>{
+    ['f-role','f-type','f-exp','f-days'].forEach(id=>{
       const el=document.getElementById(id);
       el.tagName==='SELECT'?el.selectedIndex=0:el.value='';
     });
@@ -913,7 +927,7 @@
   loadCampaigns();
   openSearchTab();
   // auto-refresh on filter change
-  ['f-role','f-type'].forEach(fid => {
+  ['f-role','f-type','f-days'].forEach(fid => {
     document.getElementById(fid).addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
   });
   document.getElementById('f-exp').addEventListener('input', () => { refreshActiveSearchTab(); loadStats(); });
