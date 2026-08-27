@@ -171,7 +171,7 @@ def crawl_lever():
     print("Crawling Lever job boards...")
     for company in LEVER_COMPANIES:
         try:
-            data = requests.get(f"https://api.lever.co/v0/postings/{company}?mode=json", timeout=10).json()
+            data = requests.get(f"https://api.lever.co/v0/postings/{company}?mode=json", timeout=15).json()
             if not isinstance(data, list): continue
             for j in data:
                 if not isinstance(j, dict): continue
@@ -262,51 +262,39 @@ def crawl_google():
 
     print("Crawling via Google Jobs (SerpApi)...")
 
-    # Read crawl-time params from env
-    max_exp   = os.environ.get("CRAWL_EXP")       # e.g. "4"
+    max_exp   = os.environ.get("CRAWL_EXP")
     locations = [l.strip() for l in os.environ.get("CRAWL_LOCS", "").split(",") if l.strip()]
     if not locations:
-        locations = ["remote", "united states", "united kingdom", "canada"]
+        locations = ["remote"]
 
-    roles = ["site reliability engineer", "devops engineer", "platform engineer", "SRE"]
+    roles = ["site reliability engineer", "devops engineer", "platform engineer", "infrastructure engineer"]
     seen_urls = set()
+    client = serpapi.Client(api_key=SERPAPI_KEY)
 
     for role in roles:
         for loc in locations:
-            # Build a smart query: role + remote preference + location
             loc_lower = loc.lower()
             if loc_lower in ("remote", "worldwide", "anywhere"):
                 q = f"{role} remote"
             else:
-                q = f"{role} remote OR hybrid {loc}"
-
-            # Append experience hint to narrow results
-            if max_exp:
-                exp_i = int(max_exp)
-                if exp_i <= 2:
-                    q += " junior entry level"
-                elif exp_i <= 4:
-                    q += " mid level"
-                elif exp_i <= 6:
-                    q += " senior"
+                q = f"{role} {loc}"
 
             try:
-                client = serpapi.Client(api_key=SERPAPI_KEY)
                 resp = client.search({
-                    "engine": "google_jobs",
-                    "q": q,
-                    "chips": "date_posted:month",
-                    "ltype": "1",
+                    "engine":        "google_jobs",
+                    "q":             q,
+                    "chips":         "date_posted:month,employment_type:FULLTIME",
+                    "gl":            "us",
+                    "hl":            "en",
                 })
 
                 for j in resp.get("jobs_results", []):
                     title = j.get("title", "")
                     if not is_target_role(title): continue
-                    company = j.get("company_name", "")
+                    company  = j.get("company_name", "")
                     location = j.get("location", "Unknown")
-                    desc = j.get("description", "")
+                    desc     = j.get("description", "")
                     exp_min, exp_max = extract_experience(desc + " " + title)
-                    # Skip if job requires more experience than user has
                     if max_exp and exp_min is not None and exp_min > int(max_exp):
                         continue
                     url = next((o.get("link","") for o in j.get("apply_options",[])), "")
