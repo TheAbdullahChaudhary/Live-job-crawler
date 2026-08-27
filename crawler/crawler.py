@@ -1,4 +1,4 @@
-import requests
+import requests, serpapi
 from bs4 import BeautifulSoup
 import sqlite3, re, os, time
 
@@ -291,13 +291,13 @@ def crawl_google():
                     q += " senior"
 
             try:
-                resp = requests.get("https://serpapi.com/search", params={
+                client = serpapi.Client(api_key=SERPAPI_KEY)
+                resp = client.search({
                     "engine": "google_jobs",
                     "q": q,
-                    "api_key": SERPAPI_KEY,
                     "chips": "date_posted:month",
-                    "ltype": "1",   # remote jobs hint
-                }, timeout=15).json()
+                    "ltype": "1",
+                })
 
                 for j in resp.get("jobs_results", []):
                     title = j.get("title", "")
