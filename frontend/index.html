@@ -297,6 +297,10 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
         <label class="src-check"><input type="checkbox" value="google" checked/> Google (SerpApi)</label>
       </div>
       <div class="key-field">
+        <div class="key-label">REPEAT EVERY (minutes, 0 = once)</div>
+        <input class="key-input" type="number" id="crawl-interval" min="0" value="0" placeholder="0"/>
+      </div>
+      <div class="key-field">
         <div class="key-label">SERPAPI KEY <span id="key-status" style="color:var(--green);margin-left:4px"></span></div>
         <input class="key-input" type="password" id="serpapi-key" placeholder="Paste key for Google Search…" oninput="saveSerpKey(this.value)" autocomplete="off"/>
       </div>
@@ -324,6 +328,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
         <div class="content-sub" id="content-sub">Loading…</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
+      <select class="sort-sel" id="f-crawl" onchange="loadJobs()" style="max-width:160px">
+        <option value="">All crawls</option>
+      </select>
       <button onclick="clearAllJobs()" style="padding:7px 14px;background:transparent;border:1px solid rgba(251,113,133,.3);color:#fb7185;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(251,113,133,.08)'" onmouseout="this.style.background='transparent'">🗑 Clear All</button>
       <select class="sort-sel" id="sort-sel" onchange="loadJobs()">
         <option value="newest">Newest first</option>
@@ -401,6 +408,7 @@ function renderCards(jobs){
           ${j.location?`<span class="card-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${j.location}</span>`:''}
         </div>
         <div class="card-foot-right">
+          ${(j.experience_min||j.experience_max)?`<span style="font-size:10px;color:var(--green);font-weight:600">${j.experience_min||0}${j.experience_max&&j.experience_max!==j.experience_min?'–'+j.experience_max:''+'+'} yrs</span>`:''}
           <span class="card-date">${dateLabel}</span>
           <span class="card-source">${src}</span>
         </div>
@@ -429,6 +437,8 @@ async function loadJobs(){
   if(type)params.append('job_type',type);
   if(loc)params.append('location',loc);
   if(exp)params.append('experience',exp);
+  const crawlId=document.getElementById('f-crawl').value;
+  if(crawlId)params.append('crawl_id',crawlId);
   const jobs=await fetch('/api/jobs?'+params).then(r=>r.json());
   document.getElementById('grid').innerHTML=renderCards(jobs);
   const today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
@@ -463,7 +473,9 @@ async function startCrawl(){
   }
   const role=document.getElementById('f-role').value;
   const loc=document.getElementById('f-location').value;
-  const params=new URLSearchParams({sources:checked.join(','),continuous:false,interval:0});
+  const interval=parseInt(document.getElementById('crawl-interval').value)||0;
+  const continuous=interval>0;
+  const params=new URLSearchParams({sources:checked.join(','),continuous,interval:interval*60});
   if(role)params.append('role',role);
   if(loc)params.append('locations',loc);
   if(serpKey)params.append('serpapi_key',serpKey);
@@ -493,6 +505,7 @@ function attachStream(crawl_id){
       document.getElementById('crawl-btn').disabled=false;
       document.getElementById('log-status').textContent='● Done';
       document.getElementById('log-status').style.color='var(--muted)';
+      loadCrawlHistory();
     }
   };
 }
@@ -519,6 +532,23 @@ function toggleLog(){
   document.getElementById('log-toggle-label').textContent=(collapsed?'▶':'▼')+' Live Log';
 }
 
+async function loadCrawlHistory(){
+  const jobs=await fetch('/api/jobs?sort=newest').then(r=>r.json());
+  const seen=new Set();const sel=document.getElementById('f-crawl');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All crawls</option>';
+  jobs.forEach(j=>{
+    if(j.crawl_id&&!seen.has(j.crawl_id)){
+      seen.add(j.crawl_id);
+      const ts=j.crawl_id.replace('crawl_','');
+      const d=new Date(parseInt(ts)*1000);
+      const label=isNaN(d)?j.crawl_id:d.toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      sel.innerHTML+=`<option value="${j.crawl_id}">${label}</option>`;
+    }
+  });
+  if(cur)sel.value=cur;
+}
+
 async function clearAllJobs(){
   if(!confirm('Delete ALL jobs from the database?'))return;
   await fetch('/api/jobs',{method:'DELETE'});
@@ -526,6 +556,7 @@ async function clearAllJobs(){
 }
 
 loadJobs();
+loadCrawlHistory();
 </script>
 </body>
 </html>
