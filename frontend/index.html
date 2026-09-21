@@ -277,7 +277,16 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
         <div class="content-title">Matching roles</div>
         <div class="content-sub" id="content-sub">Loading…</div>
       </div>
+      <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="clearAllJobs()" style="padding:7px 14px;background:transparent;border:1px solid rgba(251,113,133,.3);color:#fb7185;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(251,113,133,.08)'" onmouseout="this.style.background='transparent'">🗑 Clear All</button>
       <select class="sort-sel" id="sort-sel" onchange="loadJobs()">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="posted_desc">Posted: Latest</option>
+        <option value="company">Company A–Z</option>
+      </select>
+      </div>
+    </div>
         <option value="newest">Newest first</option>
         <option value="oldest">Oldest first</option>
         <option value="posted_desc">Posted: Latest</option>
@@ -464,6 +473,12 @@ function toggleLog(){
   const b=document.getElementById('log-body');
   const collapsed=b.classList.toggle('hidden');
   document.getElementById('log-toggle-label').textContent=(collapsed?'▶':'▼')+' Live Log';
+}
+
+async function clearAllJobs(){
+  if(!confirm('Delete ALL jobs from the database?'))return;
+  await fetch('/api/jobs',{method:'DELETE'});
+  loadJobs();
 }
 
 loadJobs();
