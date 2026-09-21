@@ -268,7 +268,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
     <div class="fp-group">
       <div class="fp-label">Max Experience (years)</div>
       <input type="number" class="fp-select" id="f-exp" min="0" max="30" placeholder="e.g. 5" oninput="loadJobs()"/>
-    </div> onclick="alert('Saved roles coming soon')">
+    </div>
+
+    <div class="saved-roles" onclick="alert('Saved roles coming soon')">
       <div class="saved-roles-left">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         Saved roles
@@ -392,7 +394,7 @@ function renderCards(jobs){
           <svg viewBox="0 0 24 24" fill="${isSaved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
       </div>
-      ${j.location||j.description?`<div class="card-desc">${j.description||j.location||''}</div>`:''}
+      ${j.description?`<div class="card-desc">${j.description}</div>`:''}
       <div class="card-foot">
         <div class="card-foot-left">
           <span class="badge ${type}">${badgeLabel}</span>
