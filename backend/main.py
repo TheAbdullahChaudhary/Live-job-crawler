@@ -200,6 +200,8 @@ def stats():
           SUM(job_type='hybrid') as hybrid
         FROM jobs
     """).fetchone()
-    return {"total": rows[0], "remote": rows[1] or 0, "onsite": rows[2] or 0, "hybrid": rows[3] or 0}
+    src_rows = conn.execute("SELECT source, COUNT(*) as cnt FROM jobs WHERE source IS NOT NULL GROUP BY source ORDER BY cnt DESC").fetchall()
+    by_source = {r[0]: r[1] for r in src_rows}
+    return {"total": rows[0], "remote": rows[1] or 0, "onsite": rows[2] or 0, "hybrid": rows[3] or 0, "by_source": by_source}
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

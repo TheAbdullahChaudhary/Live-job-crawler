@@ -1,955 +1,472 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
-  <meta http-equiv="Pragma" content="no-cache"/>
-  <title>OpsBoard — DevOps & SRE Jobs</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{
-      --bg:#07100f;--surface:#0b1514;--surface2:#0d1918;--surface3:#111f1e;
-      --border:rgba(255,255,255,.08);--border2:rgba(52,211,153,.25);
-      --accent:#34d399;--accent2:#6ee7b7;--accent-glow:rgba(52,211,153,.15);
-      --green:#34d399;--yellow:#fbbf24;--blue:#38bdf8;--red:#fb7185;
-      --text:#f1f5f9;--muted:#94a3b8;--muted2:#475569;--r:14px;
-    }
-    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
-    .app{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>OpsBoard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a1612;--surface:#0f1e1a;--surface2:#132019;--surface3:#172620;
+  --border:rgba(255,255,255,.07);--border2:rgba(52,211,153,.2);
+  --green:#34d399;--green2:#6ee7b7;--green-dim:rgba(52,211,153,.08);
+  --text:#f0f4f2;--muted:#7a9e8e;--muted2:#4a6a5a;--r:12px;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
 
-    /* ── sidebar ── */
-    .sidebar{background:rgba(8,19,18,.95);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;scrollbar-width:thin}
-    .sidebar-inner{display:flex;flex-direction:column;gap:20px;padding:20px 16px;flex:1}
-    .logo{display:flex;align-items:center;gap:12px;padding:4px 0 8px}
-    .logo-icon{width:40px;height:40px;border-radius:12px;border:1px solid rgba(52,211,153,.2);background:rgba(52,211,153,.1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 0 28px rgba(52,211,153,.12);color:var(--green)}
-    .logo h1{font-size:14px;font-weight:700;letter-spacing:-.01em}
-    .logo small{font-size:11px;color:var(--muted);display:block;margin-top:1px}
-    .sidebar-divider{height:1px;background:var(--border);margin:0 -16px}
-    .sec{font-size:10px;font-weight:600;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-    .sec::after{content:'';flex:1;height:1px;background:var(--border)}
+/* NAV */
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:56px;background:rgba(10,22,18,.9);border-bottom:1px solid var(--border);backdrop-filter:blur(20px);position:sticky;top:0;z-index:50}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-icon{width:34px;height:34px;border-radius:9px;background:var(--green-dim);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.nav-title{font-size:15px;font-weight:700;letter-spacing:-.02em}
+.nav-live{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--green-dim);border:1px solid var(--border2);color:var(--green);letter-spacing:.1em;margin-left:4px}
+.nav-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.btn-refresh{display:flex;align-items:center;gap:7px;padding:8px 16px;background:transparent;border:1px solid var(--border2);border-radius:20px;color:var(--text);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-refresh:hover{background:var(--green-dim);border-color:var(--green)}
 
-    /* stats as filter buttons */
-    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .stat{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 10px;text-align:center;cursor:pointer;transition:all .2s;user-select:none;position:relative;overflow:hidden}
-    .stat::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .2s;border-radius:var(--r)}
-    .stat:hover{border-color:var(--border2);transform:translateY(-1px)}
-    .stat:hover::before{opacity:1;background:linear-gradient(135deg,#ffffff05,transparent)}
-    .stat.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 4px 20px var(--accent-glow)}
-    .stat .n{font-size:22px;font-weight:700;color:var(--accent2);font-variant-numeric:tabular-nums}
-    .stat .l{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
-    .stat.s-remote.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green),0 4px 20px #10b98130}
-    .stat.s-remote.active .n{color:var(--green)}
-    .stat.s-onsite.active{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue),0 4px 20px #3b82f630}
-    .stat.s-onsite.active .n{color:var(--blue)}
-    .stat.s-hybrid.active{border-color:var(--yellow);box-shadow:0 0 0 1px var(--yellow),0 4px 20px #f59e0b30}
-    .stat.s-hybrid.active .n{color:var(--yellow)}
+/* HERO */
+.hero{padding:48px 32px 36px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(52,211,153,.04) 0%,transparent 100%)}
+.hero-eyebrow{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;color:var(--green);letter-spacing:.15em;text-transform:uppercase;margin-bottom:16px}
+.hero-eyebrow svg{width:14px;height:14px}
+.hero-body{display:flex;align-items:flex-start;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.hero-text h1{font-size:42px;font-weight:800;line-height:1.1;letter-spacing:-.03em;max-width:560px}
+.hero-text p{font-size:14px;color:var(--muted);margin-top:14px;max-width:480px;line-height:1.6}
+.hero-stats{display:flex;gap:12px;flex-shrink:0;align-self:center}
+.hstat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px 28px;text-align:center;min-width:100px}
+.hstat .hn{font-size:32px;font-weight:800;color:var(--text);letter-spacing:-.03em}
+.hstat .hl{font-size:10px;color:var(--muted);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
 
-    .fg{display:flex;flex-direction:column;gap:8px}
-    .lbl{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.02em}
-    select,input[type=number],input[type=text]{width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;transition:border-color .15s,box-shadow .15s;font-family:inherit}
-    select:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
-    .btn{width:100%;padding:9px 14px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-    .btn:hover{opacity:.88;transform:translateY(-1px)}
-    .btn:active{transform:translateY(0)}
-    .btn-primary{background:var(--accent);color:#fff}
-    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted)}
-    .btn-ghost:hover{border-color:var(--border2);color:var(--text)}
+/* BODY */
+.body{display:flex;min-height:calc(100vh - 56px - 200px)}
 
-    /* sources */
-    .src-list{display:flex;flex-direction:column;gap:4px}
-    .src-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s}
-    .src-item:hover{border-color:var(--border2);background:var(--surface3)}
-    .src-item:has(input:checked){border-color:var(--accent);background:#7c3aed10}
-    .src-item input{accent-color:var(--accent);width:14px;height:14px;flex-shrink:0;cursor:pointer}
-    .src-item .sn{font-size:12px;font-weight:500;flex:1}
-    .src-item .sb{font-size:10px;padding:2px 7px;border-radius:20px;background:var(--surface);color:var(--muted);border:1px solid var(--border);font-weight:500}
+/* FILTER PANEL */
+.filters{width:280px;flex-shrink:0;padding:28px 20px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:20px}
+.fp-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.fp-title svg{width:14px;height:14px;color:var(--muted)}
+.fp-group{display:flex;flex-direction:column;gap:6px}
+.fp-label{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.04em}
+.fp-select{width:100%;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;cursor:pointer;font-family:inherit;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a9e8e' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.fp-select:focus{border-color:var(--green)}
+.saved-roles{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:9px;font-size:13px;cursor:pointer;transition:all .15s}
+.saved-roles:hover{border-color:var(--border2)}
+.saved-roles-left{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.saved-roles-left svg{width:14px;height:14px}
+.saved-badge{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--muted);font-weight:600}
+.src-health{display:flex;flex-direction:column;gap:6px}
+.src-health-title{font-size:10px;font-weight:700;color:var(--muted2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px}
+.src-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+.src-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;box-shadow:0 0 6px var(--green)}
+.src-count{font-size:11px;font-weight:600;color:var(--text)}
 
-    .crawl-opts{display:flex;flex-direction:column;gap:8px;margin-top:4px}
-    .crawl-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
-    .crawl-row input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
-    .crawl-row input[type=number]{width:70px;padding:5px 8px;font-size:12px}
-    .btn-crawl{background:var(--green);color:#06100e;font-weight:700;box-shadow:0 4px 15px rgba(52,211,153,.2);letter-spacing:.01em}
-    .btn-crawl:hover{background:var(--accent2);box-shadow:0 6px 20px rgba(52,211,153,.3)}
+/* CRAWL PANEL inside filters */
+.crawl-section{border-top:1px solid var(--border);padding-top:18px;display:flex;flex-direction:column;gap:10px}
+.crawl-title{font-size:10px;font-weight:700;color:var(--muted2);letter-spacing:.1em;text-transform:uppercase}
+.src-checks{display:flex;flex-direction:column;gap:4px}
+.src-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;padding:4px 0}
+.src-check input{accent-color:var(--green);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.src-check:hover{color:var(--text)}
+.src-check:has(input:checked){color:var(--text)}
+.key-field{display:flex;flex-direction:column;gap:4px}
+.key-label{font-size:10px;color:var(--muted2);font-weight:600;letter-spacing:.04em}
+.key-input{width:100%;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;font-family:inherit}
+.key-input:focus{border-color:var(--green)}
+.btn-crawl{width:100%;padding:10px;background:var(--green);color:#071410;font-size:13px;font-weight:700;border:none;border-radius:9px;cursor:pointer;font-family:inherit;transition:all .15s;letter-spacing:.01em}
+.btn-crawl:hover{background:var(--green2);transform:translateY(-1px)}
 
-    /* ── main ── */
-    .main{display:flex;flex-direction:column;min-height:100vh;background:var(--bg)}
-    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-    .topbar-title{font-size:13px;font-weight:600;color:var(--text)}
-    .topbar-sub{font-size:11px;color:var(--muted);margin-top:1px}
+/* MAIN CONTENT */
+.content{flex:1;padding:28px 32px;overflow-y:auto}
+.content-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.content-title{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.content-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.sort-sel{padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;cursor:pointer;font-family:inherit}
+.sort-sel:focus{border-color:var(--green)}
 
-    /* tabs */
-    .tabs-bar{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
-    .tabs-bar::-webkit-scrollbar{display:none}
-    .tab{display:flex;align-items:center;gap:7px;padding:13px 14px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0;user-select:none}
-    .tab:hover{color:var(--text);background:#ffffff05}
-    .tab.active{color:var(--accent2);border-bottom-color:var(--accent)}
-    .tab .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite;flex-shrink:0}
-    .tab .dot.stopped{background:var(--muted2);animation:none}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-    .tab .cls{opacity:0;font-size:14px;line-height:1;margin-left:2px;transition:opacity .15s;color:var(--muted)}
-    .tab:hover .cls{opacity:.6}
-    .tab .cls:hover{opacity:1;color:var(--red)}
+/* JOB CARDS */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;transition:all .2s;cursor:pointer}
+.card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.card-top{display:flex;align-items:flex-start;gap:14px}
+.avatar{width:40px;height:40px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--text);flex-shrink:0;text-transform:uppercase}
+.card-info{flex:1;min-width:0}
+.card-title{font-size:14px;font-weight:600;line-height:1.4;letter-spacing:-.01em}
+.card-company{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);margin-top:3px}
+.card-company svg{width:12px;height:12px}
+.card-bookmark{width:28px;height:28px;border-radius:7px;background:transparent;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s;color:var(--muted)}
+.card-bookmark:hover{border-color:var(--border2);color:var(--green)}
+.card-desc{font-size:12px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.card-foot-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.badge.remote,.badge.Flexible,.badge.flexible{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.badge.onsite,.badge.Office,.badge.office{background:rgba(56,189,248,.1);color:#38bdf8;border:1px solid rgba(56,189,248,.2)}
+.badge.hybrid{background:rgba(251,191,36,.1);color:#fbbf24;border:1px solid rgba(251,191,36,.2)}
+.badge.unknown{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.card-loc{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.card-loc svg{width:11px;height:11px}
+.card-foot-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.card-date{font-size:11px;color:var(--muted)}
+.card-source{font-size:10px;color:var(--muted2);font-weight:500}
+.empty{text-align:center;padding:80px 20px;color:var(--muted);grid-column:1/-1}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
 
-    /* panels */
-    .panel{display:none;flex:1;flex-direction:column;overflow:hidden}
-    .panel.active{display:flex}
+/* LOG */
+.log-wrap{background:#050e0b;border:1px solid var(--border);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+.log-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--surface);cursor:pointer;font-size:11px;color:var(--muted)}
+.log-hdr:hover{color:var(--text)}
+.log-body{max-height:180px;overflow-y:auto;padding:10px 14px;font-family:monospace;font-size:11px;line-height:1.8}
+.log-body.hidden{display:none}
+.ll{color:#34d399}.ll.err{color:#fb7185}.ll.wait{color:#fbbf24}.ll.info{color:#6ee7b7}
 
-    /* log */
-    .log-box{background:#010409;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11.5px;overflow-y:auto;flex-shrink:0;transition:max-height .25s ease}
-    .log-box.collapsed{max-height:0;border:none}
-    .log-box.expanded{max-height:220px;padding:12px 20px}
-    .log-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 20px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);cursor:pointer;flex-shrink:0;user-select:none}
-    .log-toggle:hover{color:var(--text);background:var(--surface3)}
-    .ll{color:#3fb950;line-height:1.8}
-    .ll.info{color:var(--accent2)}
-    .ll.err{color:var(--red)}
-    .ll.wait{color:var(--yellow)}
+/* CRAWL STATUS BAR */
+.crawl-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:9px;margin-bottom:14px;font-size:12px}
+.crawl-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.crawl-bar-label{flex:1;color:var(--text);font-weight:500}
+.stop-btn{padding:4px 12px;background:transparent;border:1px solid rgba(251,113,133,.4);color:#fb7185;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.stop-btn:hover{background:rgba(251,113,133,.1)}
 
-    /* jobs area */
-    .jobs-area{padding:24px 28px;flex:1;overflow-y:auto}
-    .jobs-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:10px;flex-wrap:nowrap;overflow:hidden}
-    .jobs-header h2{font-size:15px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1}
-    .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
-    .cnt{font-size:12px;color:var(--muted);background:var(--surface2);padding:4px 10px;border-radius:20px;border:1px solid var(--border);font-weight:500;white-space:nowrap;flex-shrink:0}
-    .sort-sel{padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;cursor:pointer;font-family:inherit;transition:border-color .15s}
-    .sort-sel:focus{border-color:var(--accent)}
-    .stop-btn{padding:5px 14px;background:#f43f5e15;border:1px solid var(--red);color:var(--red);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
-    .stop-btn:hover{background:#f43f5e25}
-
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px;transition:all .2s;cursor:default;position:relative;overflow:hidden}
-    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);opacity:0;transition:opacity .2s}
-    .card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 30px #00000040}
-    .card:hover::before{opacity:1}
-    .card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-    .ct .title{font-size:14px;font-weight:600;line-height:1.45;letter-spacing:-.01em}
-    .ct .co{font-size:12px;color:var(--accent2);margin-top:4px;font-weight:500}
-    .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;letter-spacing:.03em;text-transform:uppercase}
-    .badge.remote{background:#10b98115;color:var(--green);border:1px solid #10b98130}
-    .badge.onsite{background:#3b82f615;color:var(--blue);border:1px solid #3b82f630}
-    .badge.hybrid{background:#f59e0b15;color:var(--yellow);border:1px solid #f59e0b30}
-    .badge.unknown{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
-    .meta{display:flex;flex-wrap:wrap;gap:6px}
-    .mi{font-size:11px;color:var(--muted);background:var(--surface2);padding:3px 8px;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;gap:4px}
-    .exp-bar{background:var(--surface2);border-radius:4px;height:2px}
-    .exp-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px}
-    .card-foot{display:flex;align-items:center;justify-content:space-between;padding-top:4px;border-top:1px solid var(--border)}
-    .src-tag{font-size:10px;color:var(--muted2);background:var(--surface2);padding:3px 8px;border-radius:6px;font-weight:500}
-    .apply{padding:7px 16px;background:var(--green);color:#06100e;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;transition:all .15s;box-shadow:0 2px 8px rgba(52,211,153,.2)}
-    .apply:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 15px rgba(52,211,153,.3)}
-    .empty{text-align:center;padding:80px 20px;color:var(--muted);grid-column:1/-1}
-    .empty .ei{font-size:48px;margin-bottom:14px;opacity:.5}
-    .empty p{font-size:14px;line-height:1.6}
-
-    .campaign{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .15s}
-    .campaign:hover{border-color:var(--border2);background:var(--surface3)}
-    .campaign.active-camp{border-color:var(--accent);background:#7c3aed0d;box-shadow:0 0 0 1px var(--accent)}
-    .campaign .cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-    .campaign .cdot.running{background:var(--green);animation:pulse 1.4s infinite;box-shadow:0 0 6px var(--green)}
-    .campaign .cdot.done{background:var(--muted2)}
-    .campaign .cdot.stopped{background:var(--red)}
-    .campaign .cinfo{flex:1;min-width:0}
-    .campaign .cname{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .campaign .cmeta{font-size:10px;color:var(--muted);margin-top:2px;font-weight:500}
-    .campaign .cclose{opacity:0;font-size:14px;flex-shrink:0;transition:opacity .15s;color:var(--muted)}
-    .campaign:hover .cclose{opacity:.5}
-    .campaign .cclose:hover{opacity:1;color:var(--red)}
-    ::-webkit-scrollbar{width:4px;height:4px}
-    ::-webkit-scrollbar-track{background:transparent}
-    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
-    .loc-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;padding:3px 0;transition:color .15s}
-    .loc-item input{accent-color:var(--accent);width:13px;height:13px;flex-shrink:0;cursor:pointer}
-    .loc-item:hover{color:var(--text)}
-    .loc-item:has(input:checked){color:var(--text)}
-    .manage-bar{display:flex;align-items:center;gap:10px;padding:10px 28px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-    .manage-bar.hidden{display:none}
-    .sel-count{font-size:12px;color:var(--muted);flex:1;font-weight:500}
-    .btn-del{padding:6px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
-    .btn-del-sel{background:#f43f5e15;border:1px solid var(--red);color:var(--red)}
-    .btn-del-sel:hover{background:#f43f5e25}
-    .btn-del-all{background:transparent;border:1px solid var(--border);color:var(--muted)}
-    .btn-del-all:hover{border-color:var(--red);color:var(--red)}
-    .card-check{position:absolute;top:12px;left:12px;width:15px;height:15px;accent-color:var(--accent);cursor:pointer;display:none}
-    .select-mode .card-check{display:block}
-    .select-mode .card{padding-left:36px}
-    .card.selected{border-color:var(--accent);background:#7c3aed0d}
-
-    /* ── Mobile hamburger ── */
-    .mob-toggle{display:none;background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1}
-    .sidebar-overlay{display:none;position:fixed;inset:0;background:#00000080;z-index:99}
-    .sidebar-overlay.open{display:block}
-
-    /* ── Responsive ── */
-    @media(max-width:900px){
-      .app{grid-template-columns:1fr}
-      .sidebar{position:fixed;left:-290px;top:0;height:100vh;z-index:100;transition:left .25s ease;width:280px}
-      .sidebar.open{left:0}
-      .mob-toggle{display:block}
-      .topbar{padding:0 14px}
-      .topbar-title{font-size:12px}
-      .jobs-area{padding:16px 14px}
-      .grid{grid-template-columns:1fr}
-      .manage-bar{padding:8px 14px}
-      .tabs-bar{padding:0 8px}
-      .tab{padding:11px 10px;font-size:11px}
-    }
-    @media(max-width:480px){
-      .topbar-sub{display:none}
-      #sn-onsite,#sn-hybrid{display:none}
-      .cnt{font-size:11px}
-    }
-  </style>
+@media(max-width:900px){
+  .filters{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .body{flex-direction:column}
+  .hero-text h1{font-size:28px}
+  .hero-stats{flex-wrap:wrap}
+  nav{padding:0 16px}
+  .content{padding:20px 16px}
+  .hero{padding:28px 16px 24px}
+}
+</style>
 </head>
 <body>
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-<div class="app">
 
-  <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-   <div class="sidebar-inner">
-    <div class="logo">
-      <div class="logo-icon">💼</div>
-      <div>
-        <div style="display:flex;align-items:center;gap:6px"><h1>OpsBoard</h1><span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;border:1px solid rgba(52,211,153,.2);background:rgba(52,211,153,.1);color:var(--green);letter-spacing:.08em">LIVE</span></div>
-        <small>DevOps · SRE · Platform Engineering</small>
-      </div>
-    </div>
-
-    <!-- Filters -->
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-icon">💼</div>
     <div>
-      <div class="sec">Search Filters</div>
-      <div class="fg">
-        <span class="lbl">Posted Within</span>
-        <select id="f-days">
-          <option value="">Any time</option>
-          <option value="1">Last 24 hours</option>
-          <option value="3">Last 3 days</option>
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30">Last 30 days</option>
-        </select>
-        <span class="lbl">Role</span>
-        <select id="f-role">
-          <option value="">All Roles</option>
-          <option value="site reliability">Site Reliability Engineer</option>
-          <option value="devops">DevOps Engineer</option>
-          <option value="platform engineer">Platform Engineer</option>
-          <option value="infrastructure">Infrastructure Engineer</option>
-        </select>
-        <span class="lbl">Job Type</span>
-        <select id="f-type">
-          <option value="">Any Type</option>
-          <option value="remote">🌍 Remote</option>
-          <option value="onsite">🏢 Onsite</option>
-          <option value="hybrid">🔀 Hybrid</option>
-        </select>
-        <span class="lbl">Location (select multiple)</span>
-        <div id="loc-list" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px">
-          <label class="loc-item"><input type="checkbox" value="remote"/> 🌍 Remote / Worldwide</label>
-          <label class="loc-item"><input type="checkbox" value="united states"/> 🇺🇸 United States</label>
-          <label class="loc-item"><input type="checkbox" value="united kingdom"/> 🇬🇧 United Kingdom</label>
-          <label class="loc-item"><input type="checkbox" value="canada"/> 🇨🇦 Canada</label>
-          <label class="loc-item"><input type="checkbox" value="germany"/> 🇩🇪 Germany</label>
-          <label class="loc-item"><input type="checkbox" value="france"/> 🇫🇷 France</label>
-          <label class="loc-item"><input type="checkbox" value="netherlands"/> 🇳🇱 Netherlands</label>
-          <label class="loc-item"><input type="checkbox" value="australia"/> 🇦🇺 Australia</label>
-          <label class="loc-item"><input type="checkbox" value="india"/> 🇮🇳 India</label>
-          <label class="loc-item"><input type="checkbox" value="pakistan"/> 🇵🇰 Pakistan</label>
-          <label class="loc-item"><input type="checkbox" value="singapore"/> 🇸🇬 Singapore</label>
-          <label class="loc-item"><input type="checkbox" value="poland"/> 🇵🇱 Poland</label>
-          <label class="loc-item"><input type="checkbox" value="spain"/> 🇪🇸 Spain</label>
-          <label class="loc-item"><input type="checkbox" value="portugal"/> 🇵🇹 Portugal</label>
-          <label class="loc-item"><input type="checkbox" value="brazil"/> 🇧🇷 Brazil</label>
-          <label class="loc-item"><input type="checkbox" value="europe"/> 🌍 Europe</label>
-          <label class="loc-item"><input type="checkbox" value="latin america"/> 🌎 Latin America</label>
-          <label class="loc-item"><input type="checkbox" value="asia"/> 🌏 Asia</label>
-        </div>
-        <span class="lbl">My Experience (years) — shows jobs I qualify for</span>
-        <input type="number" id="f-exp" placeholder="e.g. 3" min="0" max="30"/>
-        <button class="btn btn-ghost" onclick="clearFilters()">Clear Filters</button>
-        <button class="btn btn-ghost" style="color:#e55;border-color:#e55" onclick="clearAllJobs()">🗑 Clear All Jobs</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="nav-title">OpsBoard</span>
+        <span class="nav-live">LIVE</span>
+      </div>
+      <div class="nav-sub">DevOps · SRE · Platform Engineering</div>
+    </div>
+  </div>
+  <button class="btn-refresh" onclick="loadJobs()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+    Refresh feeds
+  </button>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+    CURATED ENGINEERING ROLES
+  </div>
+  <div class="hero-body">
+    <div class="hero-text">
+      <h1>Find the infrastructure role worth your time.</h1>
+      <p>One focused feed for DevOps, SRE, platform and cloud engineers—without the noise of a general job board.</p>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hn" id="stat-total">—</div><div class="hl">Open Roles</div></div>
+      <div class="hstat"><div class="hn" id="stat-remote">—</div><div class="hl">Remote</div></div>
+      <div class="hstat"><div class="hn" id="stat-sources">—</div><div class="hl">Sources Live</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- FILTER PANEL -->
+  <aside class="filters">
+    <div>
+      <div class="fp-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        Filters
       </div>
     </div>
 
-    <!-- Campaigns list -->
-    <div>
-      <div class="sec">Campaigns</div>
-      <div id="campaigns-list" style="display:flex;flex-direction:column;gap:5px">
-        <div style="font-size:12px;color:var(--muted);padding:4px 2px">No campaigns yet. Start a crawl.</div>
-      </div>
+    <div class="fp-group">
+      <div class="fp-label">Role and technology</div>
+      <select class="fp-select" id="f-role" onchange="loadJobs()">
+        <option value="">All roles</option>
+        <option value="devops">DevOps Engineer</option>
+        <option value="site reliability">Site Reliability Engineer</option>
+        <option value="platform engineer">Platform Engineer</option>
+        <option value="cloud engineer">Cloud Engineer</option>
+        <option value="infrastructure">Infrastructure Engineer</option>
+      </select>
     </div>
 
-    <!-- Crawl -->
-    <div>
-      <div class="sec">Crawl Sources</div>
-      <div style="margin-bottom:10px">
-        <div style="font-size:11px;color:var(--muted);font-weight:500;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between">
-          <span>🔑 SerpApi Key <span style="color:var(--muted2)">(session only)</span></span>
-          <span id="key-status" style="font-size:10px"></span>
-        </div>
-        <div style="display:flex;gap:6px">
-          <input type="password" id="serpapi-key" placeholder="Paste key for Google Search…"
-            style="flex:1;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;font-family:inherit"
-            oninput="saveSerpKey(this.value)" autocomplete="off"/>
-          <button onclick="clearSerpKey()" title="Clear"
-            style="padding:7px 10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:12px">✕</button>
-        </div>
-        <div style="font-size:10px;color:var(--muted2);margin-top:4px">Required only for Google Search. Never sent to server storage.</div>
-      </div>
-      <div class="src-list">
-        <label class="src-item"><input type="checkbox" value="remotive" checked/><span class="sn">Remotive</span><span class="sb">API</span></label>
-        <label class="src-item"><input type="checkbox" value="arbeitnow" checked/><span class="sn">Arbeitnow</span><span class="sb">API</span></label>
-        <label class="src-item"><input type="checkbox" value="wwr" checked/><span class="sn">We Work Remotely</span><span class="sb">RSS</span></label>
-        <label class="src-item"><input type="checkbox" value="jobicy" checked/><span class="sn">Jobicy</span><span class="sb">API</span></label>
-        <label class="src-item"><input type="checkbox" value="himalayas" checked/><span class="sn">Himalayas</span><span class="sb">API</span></label>
-        <label class="src-item"><input type="checkbox" value="wellfound" checked/><span class="sn">Wellfound</span><span class="sb">Scrape</span></label>
-        <label class="src-item"><input type="checkbox" value="greenhouse" checked/><span class="sn">Greenhouse</span><span class="sb">55 cos</span></label>
-        <label class="src-item"><input type="checkbox" value="lever" checked/><span class="sn">Lever</span><span class="sb">25 cos</span></label>
-        <label class="src-item"><input type="checkbox" value="google" checked/><span class="sn">Google Search</span><span class="sb">SerpApi</span></label>
-      </div>
-      <div class="crawl-opts">
-        <label class="crawl-row">
-          <input type="checkbox" id="opt-continuous"/>
-          <span>Keep crawling until stopped</span>
-        </label>
-        <label class="crawl-row" id="opt-duration-row" style="display:none">
-          <span>Auto-stop after</span>
-          <input type="number" id="opt-duration" value="60" min="1" style="width:60px"/>
-          <select id="opt-unit" style="width:80px;padding:5px 6px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text)">
-            <option value="60">min</option>
-            <option value="3600">hr</option>
-          </select>
-        </label>
-        <button class="btn btn-crawl" onclick="startCrawl()">↻ Start Crawl</button>
-      </div>
+    <div class="fp-group">
+      <div class="fp-label">Location</div>
+      <select class="fp-select" id="f-location" onchange="loadJobs()">
+        <option value="">All locations</option>
+        <option value="remote">Remote</option>
+        <option value="usa">USA</option>
+        <option value="uk">UK</option>
+        <option value="europe">Europe</option>
+        <option value="germany">Germany</option>
+        <option value="canada">Canada</option>
+      </select>
     </div>
-  </div><!-- /sidebar-inner -->
+
+    <div class="fp-group">
+      <div class="fp-label">Work style</div>
+      <select class="fp-select" id="f-type" onchange="loadJobs()">
+        <option value="">All work styles</option>
+        <option value="remote">Remote</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="onsite">On-site</option>
+      </select>
+    </div>
+
+    <div class="saved-roles" onclick="alert('Saved roles coming soon')">
+      <div class="saved-roles-left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        Saved roles
+      </div>
+      <span class="saved-badge" id="saved-count">0</span>
+    </div>
+
+    <div class="src-health">
+      <div class="src-health-title">Source Health</div>
+      <div id="source-health-list"></div>
+    </div>
+
+    <!-- CRAWL SECTION -->
+    <div class="crawl-section">
+      <div class="crawl-title">Run Crawler</div>
+      <div class="src-checks" id="src-checks">
+        <label class="src-check"><input type="checkbox" value="remotive" checked/> Remotive</label>
+        <label class="src-check"><input type="checkbox" value="arbeitnow" checked/> Arbeitnow</label>
+        <label class="src-check"><input type="checkbox" value="wwr" checked/> We Work Remotely</label>
+        <label class="src-check"><input type="checkbox" value="jobicy" checked/> Jobicy</label>
+        <label class="src-check"><input type="checkbox" value="himalayas" checked/> Himalayas</label>
+        <label class="src-check"><input type="checkbox" value="greenhouse" checked/> Greenhouse</label>
+        <label class="src-check"><input type="checkbox" value="lever" checked/> Lever</label>
+        <label class="src-check"><input type="checkbox" value="google" checked/> Google (SerpApi)</label>
+      </div>
+      <div class="key-field">
+        <div class="key-label">SERPAPI KEY <span id="key-status" style="color:var(--green);margin-left:4px"></span></div>
+        <input class="key-input" type="password" id="serpapi-key" placeholder="Paste key for Google Search…" oninput="saveSerpKey(this.value)" autocomplete="off"/>
+      </div>
+      <button class="btn-crawl" id="crawl-btn" onclick="startCrawl()">↻ Start Crawl</button>
+    </div>
   </aside>
 
-  <!-- ── Main ── -->
-  <main class="main">
-    <div class="topbar">
-      <div style="display:flex;align-items:center;gap:10px">
-        <button class="mob-toggle" onclick="toggleSidebar()">☰</button>
-        <div><div class="topbar-title">OpsBoard — DevOps & SRE Jobs</div><div class="topbar-sub">Real-time crawler · <span id="sn-total">—</span></div></div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <div id="sn-remote" onclick="toggleStatFilter('remote')" style="font-size:11px;color:var(--green);background:#10b98115;border:1px solid #10b98130;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#10b98125'" onmouseout="this.style.background='#10b98115'"></div>
-        <div id="sn-onsite" onclick="toggleStatFilter('onsite')" style="font-size:11px;color:var(--blue);background:#3b82f615;border:1px solid #3b82f630;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#3b82f625'" onmouseout="this.style.background='#3b82f615'"></div>
-        <div id="sn-hybrid" onclick="toggleStatFilter('hybrid')" style="font-size:11px;color:var(--yellow);background:#f59e0b15;border:1px solid #f59e0b30;padding:3px 10px;border-radius:20px;font-weight:600;cursor:pointer;transition:all .15s" onmouseover="this.style.background='#f59e0b25'" onmouseout="this.style.background='#f59e0b15'"></div>
-      </div>
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    <div id="crawl-status" style="display:none" class="crawl-bar">
+      <div class="crawl-dot"></div>
+      <span class="crawl-bar-label" id="crawl-label">Crawling…</span>
+      <button class="stop-btn" onclick="stopCrawl()">■ Stop</button>
     </div>
-    <div class="tabs-bar" id="tabs-bar"></div>
-    <div id="panels" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
+    <div id="log-wrap" class="log-wrap" style="display:none">
+      <div class="log-hdr" onclick="toggleLog()">
+        <span id="log-toggle-label">▼ Live Log</span>
+        <span id="log-status" style="color:var(--green)">● Running</span>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+    <div class="content-header">
+      <div>
+        <div class="content-title">Matching roles</div>
+        <div class="content-sub" id="content-sub">Loading…</div>
+      </div>
+      <select class="sort-sel" id="sort-sel" onchange="loadJobs()">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="posted_desc">Posted: Latest</option>
+        <option value="company">Company A–Z</option>
+      </select>
+    </div>
+    <div class="grid" id="grid"></div>
   </main>
 </div>
 
 <script>
-  let tabCounter = 0;
-  const tabs = {};
-  let activeStatFilter = null;
-  const campaigns = {};
+let activeCrawlId = null;
+let savedJobs = JSON.parse(localStorage.getItem('saved_jobs')||'[]');
 
-  async function loadCampaigns() {
-    const [list, activeRes] = await Promise.all([
-      fetch('/api/campaigns').then(r => r.json()),
-      fetch('/api/crawl/active').then(r => r.json())
-    ]);
-    const activeCrawlIds = new Set(activeRes.active || []);
-    list.forEach(c => {
-      const isActive = activeCrawlIds.has(c.id);
-      campaigns[c.id] = {label: c.label, status: isActive ? 'running' : c.status, startTime: c.start_time, jobCount: c.job_count, tabId: null};
-      if (isActive) reconnectCrawl(c.id, c.label);
-    });
-    renderCampaigns();
-  }
+function saveSerpKey(v){
+  if(v.trim()){sessionStorage.setItem('serpapi_key',v.trim());document.getElementById('key-status').textContent='✓';}
+  else{sessionStorage.removeItem('serpapi_key');document.getElementById('key-status').textContent='';}
+}
+(function(){const k=sessionStorage.getItem('serpapi_key');if(k){document.getElementById('serpapi-key').value=k;document.getElementById('key-status').textContent='✓';}})();
 
-  function reconnectCrawl(crawlId, label) {
-    const id = makeId();
-    Object.keys(tabs).forEach(k => tabs[k].active = false);
-    tabs[id] = {type:'crawl', label, active:true, running:true, crawl_id: crawlId};
-    campaigns[crawlId].tabId = id;
-    renderTabs();
-    const panel = createPanel(id);
-    panel.innerHTML = buildCrawlPanelHTML(id, label);
-    panel.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
-    attachCrawlStream(id, crawlId);
-  }
+function getInitial(name){return(name||'?').trim()[0].toUpperCase();}
 
-  function saveCampaigns() {} // no-op, DB is source of truth
+const AVATAR_COLORS=['#1a3a2a','#1a2a3a','#2a1a3a','#3a2a1a','#1a3a3a','#2a3a1a'];
+function avatarColor(name){let h=0;for(let c of(name||''))h=(h*31+c.charCodeAt(0))&0xffff;return AVATAR_COLORS[h%AVATAR_COLORS.length];}
 
-  function makeId(){ return 't'+(++tabCounter); }
+function timeAgo(dateStr){
+  if(!dateStr)return null;
+  const d=new Date(dateStr);if(isNaN(d))return dateStr;
+  const diff=Date.now()-d;
+  const mins=Math.floor(diff/60000);
+  if(mins<60)return mins<=1?'Just now':`${mins}m ago`;
+  const hrs=Math.floor(mins/60);
+  if(hrs<24)return `${hrs}h ago`;
+  const days=Math.floor(hrs/24);
+  if(days===0)return 'Today';
+  if(days===1)return 'Yesterday';
+  if(days<7)return `${days}d ago`;
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
 
-  function renderCampaigns() {
-    const el = document.getElementById('campaigns-list');
-    const entries = Object.entries(campaigns);
-    if (!entries.length) {
-      el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 2px">No campaigns yet. Start a crawl.</div>';
-      return;
-    }
-    el.innerHTML = entries.map(([id, c]) => `
-      <div class="campaign ${tabs[c.tabId]?.active ? 'active-camp' : ''}" onclick="openCampaignTab('${id}')">
-        <span class="cdot ${c.status}"></span>
-        <div class="cinfo">
-          <div class="cname">${c.label}</div>
-          <div class="cmeta">${c.status==='running'?'Running…':c.status==='stopped'?'Stopped':'Done'} · ${c.jobCount} jobs · ${c.startTime}</div>
-        </div>
-        <span class="cclose" onclick="event.stopPropagation();removeCampaign('${id}')">×</span>
-      </div>`).join('');
-  }
-
-  function openCampaignTab(campId) {
-    const c = campaigns[campId];
-    if (!c) return;
-    // if tab still alive, just switch
-    if (c.tabId && tabs[c.tabId]) { switchTab(c.tabId); return; }
-    // create a jobs-view tab for this campaign
-    const id = makeId();
-    Object.keys(tabs).forEach(k => tabs[k].active = false);
-    tabs[id] = {type:'search', label: c.label, active: true};
-    c.tabId = id;
-    renderTabs();
-    const panel = createPanel(id);
-    panel.innerHTML = `
-      <div class="manage-bar hidden" id="mbar-${id}">
-        <span class="sel-count" id="sel-count-${id}">0 selected</span>
-        <button class="btn-del btn-del-sel" onclick="deleteSelected('${id}')">🗑 Delete Selected</button>
-        <button class="btn-del btn-del-all" onclick="deleteAll('${id}')">🗑 Clear All Jobs</button>
-        <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="toggleSelectMode('${id}',false)">Cancel</button>
-      </div>
-      <div class="jobs-area">
-        <div class="jobs-header">
-          <h2>${c.label}</h2>
-          <div class="header-right">
-            <span class="cnt" id="cnt-${id}">Loading...</span>
-            <select class="sort-sel" onchange="resortTab('${id}',this.value)">
-              <option value="newest">🕐 Crawled: Newest</option>
-              <option value="oldest">🕐 Crawled: Oldest</option>
-              <option value="posted_desc">📅 Posted: Latest</option>
-              <option value="posted_asc">📅 Posted: Oldest</option>
-              <option value="exp_asc">📈 Exp: Low→High</option>
-              <option value="exp_desc">📉 Exp: High→Low</option>
-              <option value="company">🏢 Company A-Z</option>
-            </select>
-            <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px" onclick="toggleSelectMode('${id}',true)">☑ Select</button>
+function renderCards(jobs){
+  if(!jobs.length)return`<div class="empty"><div class="empty-icon">🔍</div><p>No matching roles found.<br>Try different filters or run a crawl.</p></div>`;
+  return jobs.map(j=>{
+    const type=(j.job_type||'unknown').toLowerCase();
+    const badgeLabel=type==='remote'?'Remote':type==='onsite'?'Office':type==='hybrid'?'Hybrid':'Flexible';
+    const src=j.source||(()=>{try{return new URL(j.url).hostname.replace('www.','').split('.')[0];}catch(_){return '?'}})();
+    const posted=j.posted_at?timeAgo(j.posted_at):null;
+    const crawled=j.crawled_at?timeAgo(j.crawled_at):null;
+    const dateLabel=posted||crawled||'';
+    const isSaved=savedJobs.includes(j.id);
+    const bg=avatarColor(j.company);
+    return`<div class="card">
+      <div class="card-top">
+        <div class="avatar" style="background:${bg}">${getInitial(j.company)}</div>
+        <div class="card-info">
+          <div class="card-title">${j.title}</div>
+          <div class="card-company">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            ${j.company}
           </div>
         </div>
-        <div class="grid" id="grid-${id}"></div>
-      </div>`;
-    panel.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p => { if (p.id !== panel.id) p.classList.remove('active'); });
-    tabs[id].crawlId = campId;
-    tabs[id].filters = {
-      role: document.getElementById('f-role').value,
-      type: document.getElementById('f-type').value,
-      locs: [...document.querySelectorAll('#loc-list input:checked')].map(o=>o.value),
-      exp:  document.getElementById('f-exp').value,
-    };
-    loadJobsIntoTab(id, 'newest');
-  }
-
-  async function removeCampaign(id) {
-    if (campaigns[id]?.tabId) closeTab(campaigns[id].tabId);
-    await fetch(`/api/campaigns/${id}`, {method:'DELETE'});
-    delete campaigns[id];
-    renderCampaigns();
-  }
-  function toggleStatFilter(type) {
-    if (type === 'total') {
-      activeStatFilter = null;
-      document.getElementById('f-type').value = '';
-    } else {
-      activeStatFilter = activeStatFilter === type ? null : type;
-      document.getElementById('f-type').value = activeStatFilter || '';
-    }
-    refreshActiveSearchTab();
-  }
-
-  // single persistent search tab id
-  let searchTabId = null;
-
-  function refreshActiveSearchTab() {
-    const role = document.getElementById('f-role').value;
-    const type = document.getElementById('f-type').value;
-    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
-    const exp  = document.getElementById('f-exp').value;
-    const days = document.getElementById('f-days').value;
-    const filters = {role, type, locs, exp, days};
-
-    // update all open tabs with new filters (search + campaign)
-    Object.entries(tabs).forEach(([id, t]) => {
-      if (t.type === 'crawl') { refreshCrawlJobs(id, 'newest', t.crawl_id); return; }
-      if (t.type !== 'search') return;
-      t.filters = filters;
-      if (!t.crawlId) {
-        const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
-        t.label = label;
-        const h2 = document.querySelector(`#panel-${id} h2`);
-        if (h2) h2.textContent = label;
-      }
-      loadJobsIntoTab(id);
-    });
-
-    // if no search tab exists yet, open one
-    if (!searchTabId || !tabs[searchTabId]) { openSearchTab(); return; }
-    renderTabs();
-  }
-
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  function renderTabs() {
-    document.getElementById('tabs-bar').innerHTML = Object.entries(tabs).map(([id,t]) => `
-      <div class="tab ${t.active?'active':''}" onclick="switchTab('${id}')">
-        ${t.type==='crawl' ? `<span class="dot ${t.running?'':'stopped'}"></span>` : '🔍'}
-        ${t.label}
-        <span class="cls" onclick="event.stopPropagation();closeTab('${id}')">×</span>
-      </div>`).join('');
-    renderCampaigns();
-  }
-
-  function switchTab(id) {
-    Object.keys(tabs).forEach(k => tabs[k].active = k===id);
-    renderTabs();
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-'+id)?.classList.add('active');
-    // close sidebar on mobile
-    document.querySelector('.sidebar').classList.remove('open');
-    document.getElementById('sidebar-overlay').classList.remove('open');
-  }
-
-  function closeTab(id) {
-    if (tabs[id]?.crawl_id) fetch(`/api/crawl/stop/${tabs[id].crawl_id}`,{method:'POST'});
-    delete tabs[id];
-    document.getElementById('panel-'+id)?.remove();
-    const rem = Object.keys(tabs);
-    if (rem.length) switchTab(rem[rem.length-1]); else renderTabs();
-  }
-
-  function createPanel(id) {
-    const div = document.createElement('div');
-    div.className = 'panel'; div.id = 'panel-'+id;
-    document.getElementById('panels').appendChild(div);
-    return div;
-  }
-
-  // ── Search Tab ────────────────────────────────────────────────────────────
-  async function openSearchTab() {
-    const role = document.getElementById('f-role').value;
-    const type = document.getElementById('f-type').value;
-    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o => o.value);
-    const exp  = document.getElementById('f-exp').value;
-    const label = [role, type?`(${type})`:'', locs.length?locs.join('/'):'', exp?`≤${exp}yrs`:''].filter(Boolean).join(' ') || 'All Jobs';
-
-    // reuse existing search tab if it exists
-    if (searchTabId && tabs[searchTabId]) {
-      tabs[searchTabId].filters = {role, type, locs, exp, days: document.getElementById('f-days').value};
-      tabs[searchTabId].label = label;
-      Object.keys(tabs).forEach(k => tabs[k].active = false);
-      tabs[searchTabId].active = true;
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.getElementById('panel-' + searchTabId)?.classList.add('active');
-      const h2 = document.querySelector(`#panel-${searchTabId} h2`);
-      if (h2) h2.textContent = label;
-      renderTabs();
-      await loadJobsIntoTab(searchTabId, 'newest');
-      return;
-    }
-
-    const id = makeId();
-    searchTabId = id;
-    Object.keys(tabs).forEach(k => tabs[k].active=false);
-    tabs[id] = {type:'search', label, active:true, filters: {role, type, locs, exp, days: document.getElementById('f-days').value}};
-    renderTabs();
-
-    const panel = createPanel(id);
-    panel.innerHTML = `
-      <div class="manage-bar hidden" id="mbar-${id}">
-        <span class="sel-count" id="sel-count-${id}">0 selected</span>
-        <button class="btn-del btn-del-sel" onclick="deleteSelected('${id}')">🗑 Delete Selected</button>
-        <button class="btn-del btn-del-all" onclick="deleteAll('${id}')">🗑 Clear All Jobs</button>
-        <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted)" onclick="toggleSelectMode('${id}',false)">Cancel</button>
+        <button class="card-bookmark" onclick="toggleSave(${j.id},this)" title="Save role">
+          <svg viewBox="0 0 24 24" fill="${isSaved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
       </div>
-      <div class="jobs-area">
-        <div class="jobs-header">
-          <h2>${label}</h2>
-          <div class="header-right">
-            <span class="cnt" id="cnt-${id}">Loading...</span>
-            <select class="sort-sel" onchange="resortTab('${id}',this.value)">
-              <option value="newest">🕐 Crawled: Newest</option>
-              <option value="oldest">🕐 Crawled: Oldest</option>
-              <option value="posted_desc">📅 Posted: Latest</option>
-              <option value="posted_asc">📅 Posted: Oldest</option>
-              <option value="exp_asc">📈 Exp: Low→High</option>
-              <option value="exp_desc">📉 Exp: High→Low</option>
-              <option value="company">🏢 Company A-Z</option>
-            </select>
-            <button class="btn-del" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:12px" onclick="toggleSelectMode('${id}',true)">☑ Select</button>
-          </div>
+      ${j.location||j.description?`<div class="card-desc">${j.description||j.location||''}</div>`:''}
+      <div class="card-foot">
+        <div class="card-foot-left">
+          <span class="badge ${type}">${badgeLabel}</span>
+          ${j.location?`<span class="card-loc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${j.location}</span>`:''}
         </div>
-        <div class="grid" id="grid-${id}"></div>
-      </div>`;
-    panel.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
-    tabs[id].filters = {role, type, locs, exp, days: document.getElementById('f-days').value};
-    await loadJobsIntoTab(id, 'newest');
-  }
-
-  async function resortTab(id, sort) {
-    await loadJobsIntoTab(id, sort);
-  }
-
-  async function loadJobsIntoTab(id, sort='newest') {
-    const f = tabs[id]?.filters || {};
-    const params = new URLSearchParams({sort});
-    if (f.role) params.append('role', f.role);
-    if (f.type) params.append('job_type', f.type);
-    if (tabs[id]?.crawlId) params.append('crawl_id', tabs[id].crawlId);
-    // fetch once per location then merge+dedupe
-    if (f.locs && f.locs.length) {
-      let all = [];
-      for (const loc of f.locs) {
-        const p = new URLSearchParams(params);
-        p.append('location', loc);
-        if (f.exp) p.append('experience', f.exp);
-        if (f.days) p.append('days', f.days);
-        const jobs = await fetch('/api/jobs?'+p).then(r=>r.json());
-        all.push(...jobs);
-      }
-      // dedupe by id
-      const seen = new Set();
-      const jobs = all.filter(j => seen.has(j.id) ? false : seen.add(j.id));
-      const cnt = document.getElementById('cnt-'+id);
-      if (cnt) cnt.textContent = `${jobs.length} jobs found`;
-      const grid = document.getElementById('grid-'+id);
-      if (grid) grid.innerHTML = renderCards(jobs);
-      return;
-    }
-    if (f.exp)  params.append('experience', f.exp);
-    if (f.days) params.append('days', f.days);
-    const jobs = await fetch('/api/jobs?'+params).then(r=>r.json());
-    const cnt = document.getElementById('cnt-'+id);
-    if (cnt) cnt.textContent = `${jobs.length} jobs found`;
-    const grid = document.getElementById('grid-'+id);
-    if (grid) grid.innerHTML = renderCards(jobs);
-  }
-
-  // ── Crawl Tab ─────────────────────────────────────────────────────────────
-  // show duration row when continuous checked
-  document.getElementById('opt-continuous').addEventListener('change', function() {
-    document.getElementById('opt-duration-row').style.display = this.checked ? 'flex' : 'none';
-  });
-
-  function buildCrawlPanelHTML(id, label) {
-    return `
-      <div class="log-toggle" onclick="toggleLog('${id}')">
-        <span id="log-label-${id}">▼ Live Log</span>
-        <span id="log-status-${id}" style="color:var(--green)">● Running</span>
+        <div class="card-foot-right">
+          <span class="card-date">${dateLabel}</span>
+          <span class="card-source">${src}</span>
+        </div>
       </div>
-      <div class="log-box expanded" id="log-${id}"></div>
-      <div class="jobs-area">
-        <div class="jobs-header">
-          <h2>Crawl: ${label}</h2>
-          <div class="header-right">
-            <span class="cnt" id="cnt-${id}">Running...</span>
-            <select class="sort-sel" onchange="resortCrawlTab('${id}',this.value)">
-              <option value="newest">🕐 Crawled: Newest</option>
-              <option value="oldest">🕐 Crawled: Oldest</option>
-              <option value="posted_desc">📅 Posted: Latest</option>
-              <option value="posted_asc">📅 Posted: Oldest</option>
-              <option value="exp_asc">📈 Exp: Low→High</option>
-              <option value="exp_desc">📉 Exp: High→Low</option>
-              <option value="company">🏢 Company A-Z</option>
-            </select>
-            <button class="stop-btn" id="stop-${id}" onclick="stopCrawl('${id}')">■ Stop</button>
-          </div>
-        </div>
-        <div class="grid" id="grid-${id}"></div>
-      </div>`;
-  }
+    </div>`;
+  }).join('');
+}
 
-  function attachCrawlStream(id, crawl_id) {
-    const campId = crawl_id;
-    const es = new EventSource(`/api/crawl/stream/${crawl_id}`);
-    es.onmessage = async e => {
-      const line = JSON.parse(e.data);
-      appendLog(id, line);
+function toggleSave(id,btn){
+  const idx=savedJobs.indexOf(id);
+  if(idx===-1){savedJobs.push(id);}else{savedJobs.splice(idx,1);}
+  localStorage.setItem('saved_jobs',JSON.stringify(savedJobs));
+  const svg=btn.querySelector('svg');
+  svg.setAttribute('fill',savedJobs.includes(id)?'currentColor':'none');
+  document.getElementById('saved-count').textContent=savedJobs.length;
+}
 
-      async function updateCampJobCount() {
-        const jobs = await fetch(`/api/jobs?crawl_id=${campId}`).then(r=>r.json());
-        if (campaigns[campId]) {
-          campaigns[campId].jobCount = jobs.length;
-          fetch(`/api/campaigns/${campId}?job_count=${jobs.length}`, {method:'PATCH'});
-          renderCampaigns();
-        }
-      }
-
-      if (line.startsWith('__RUN_DONE__')) {
-        await refreshCrawlJobs(id, 'newest', campId);
-        loadStats();
-        await updateCampJobCount();
-      }
-      if (line === '__DONE__') {
-        es.close();
-        tabs[id].running = false;
-        await updateCampJobCount();
-        if (campaigns[campId]) { campaigns[campId].status = 'done'; fetch(`/api/campaigns/${campId}?status=done`, {method:'PATCH'}); }
-        renderTabs(); renderCampaigns();
-        const st = document.getElementById('log-status-'+id);
-        if (st) { st.textContent='● Stopped'; st.style.color='var(--muted)'; }
-        const sb = document.getElementById('stop-'+id);
-        if (sb) sb.remove();
-        await refreshCrawlJobs(id, 'newest', campId);
-        loadStats();
-      }
-    };
-  }
-
-  function saveSerpKey(val) {
-    if (val.trim()) {
-      sessionStorage.setItem('serpapi_key', val.trim());
-      document.getElementById('key-status').textContent = '✓ saved';
-      document.getElementById('key-status').style.color = 'var(--green,#7c3aed)';
-    } else {
-      sessionStorage.removeItem('serpapi_key');
-      document.getElementById('key-status').textContent = '';
-    }
-  }
-  function clearSerpKey() {
-    sessionStorage.removeItem('serpapi_key');
-    document.getElementById('serpapi-key').value = '';
-    document.getElementById('key-status').textContent = '';
-  }
-  (function(){
-    const k = sessionStorage.getItem('serpapi_key');
-    if (k) { document.getElementById('serpapi-key').value = k; document.getElementById('key-status').textContent = '✓ saved'; }
-  })();
-
-  async function startCrawl() {
-    const checked = [...document.querySelectorAll('.src-list input:checked')].map(i=>i.value);
-    if (!checked.length) { alert('Select at least one source.'); return; }
-
-    const serpKey = sessionStorage.getItem('serpapi_key') || '';
-    if (checked.includes('google') && !serpKey) {
-      alert('Google Search requires a SerpApi key. Paste it in the key field above, or uncheck Google Search.');
-      document.getElementById('serpapi-key').focus();
-      return;
-    }
-
-    const continuous = document.getElementById('opt-continuous').checked;
-    const sources    = checked.join(',');
-    const label      = checked.length===6 ? 'All Sources' : checked.slice(0,2).join(',')+( checked.length>2?'…':'');
-
-    const id = makeId();
-    Object.keys(tabs).forEach(k => tabs[k].active=false);
-    tabs[id] = {type:'crawl', label, active:true, running:true};
-    renderTabs();
-
-    const panel = createPanel(id);
-    panel.innerHTML = buildCrawlPanelHTML(id, label);
-    panel.classList.add('active');
-    document.querySelectorAll('.panel').forEach(p=>{ if(p.id!==panel.id) p.classList.remove('active'); });
-
-    const params = new URLSearchParams({sources, continuous, interval: 0});
-    const exp  = document.getElementById('f-exp').value;
-    const role = document.getElementById('f-role').value;
-    const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o=>o.value);
-    if (exp)         params.append('experience', exp);
-    if (role)        params.append('role', role);
-    if (locs.length) params.append('locations', locs.join(','));
-    if (serpKey)     params.append('serpapi_key', serpKey);
-    const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
-    tabs[id].crawl_id = crawl_id;
-
-    if (continuous) {
-      const dur = parseInt(document.getElementById('opt-duration').value) || 60;
-      const unit = parseInt(document.getElementById('opt-unit').value) || 60;
-      tabs[id].autoStopTimer = setTimeout(() => {
-        appendLog(id, `⏱ Auto-stop triggered after ${dur} ${unit===60?'min':'hr'}`);
-        stopCrawl(id);
-      }, dur * unit * 1000);
-    }
-
-    const campId = crawl_id;
-    const startTime = new Date().toLocaleTimeString();
-    campaigns[campId] = {label: `${label} ${continuous?'(continuous)':''}`, status: 'running', tabId: id, startTime, jobCount: 0};
-    await fetch(`/api/campaigns?id=${encodeURIComponent(campId)}&label=${encodeURIComponent(campaigns[campId].label)}&status=running&start_time=${encodeURIComponent(startTime)}&job_count=0`, {method:'POST'});
-    renderCampaigns();
-
-    attachCrawlStream(id, crawl_id);
-  }
-
-  async function refreshCrawlJobs(id, sort='newest', crawlId=null) {
-    const exp = document.getElementById('f-exp').value;
-    let url = '/api/jobs?sort='+sort;
-    if (crawlId) url += '&crawl_id='+crawlId;
-    if (exp) url += '&experience='+exp;
-    const jobs = await fetch(url).then(r=>r.json());
-    const cnt = document.getElementById('cnt-'+id);
-    if (cnt) cnt.textContent = `${jobs.length} jobs`;
-    const grid = document.getElementById('grid-'+id);
-    if (grid) grid.innerHTML = renderCards(jobs);
-  }
-
-  async function resortCrawlTab(id, sort) {
-    await refreshCrawlJobs(id, sort);
-  }
-
-  function stopCrawl(id) {
-    const crawl_id = tabs[id]?.crawl_id;
-    if (crawl_id) {
-      fetch(`/api/crawl/stop/${crawl_id}`,{method:'POST'});
-      const camp = Object.values(campaigns).find(c=>c.tabId===id);
-      if (camp) { camp.status='stopped'; fetch(`/api/campaigns/${tabs[id].crawl_id}?status=stopped`,{method:'PATCH'}); saveCampaigns(); renderCampaigns(); }
-    }
-    if (tabs[id]?.autoStopTimer) clearTimeout(tabs[id].autoStopTimer);
-  }
-
-  function appendLog(id, line) {
-    const log = document.getElementById('log-'+id);
-    if (!log) return;
-    const d = document.createElement('div');
-    d.className = 'll' + (line==='__DONE__'?' info': line.startsWith('⏳')?' wait': line.toLowerCase().includes('error')?' err':'');
-    d.textContent = line==='__DONE__' ? '✅ Crawl complete!' : line;
-    log.appendChild(d);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function toggleLog(id) {
-    const box = document.getElementById('log-'+id);
-    const lbl = document.getElementById('log-label-'+id);
-    const collapsed = box.classList.toggle('collapsed');
-    box.classList.toggle('expanded', !collapsed);
-    lbl.textContent = (collapsed ? '▶' : '▼') + ' Live Log';
-  }
-
-  // ── Cards ─────────────────────────────────────────────────────────────────
-  function renderCards(jobs) {
-    if (!jobs.length) return `<div class="empty"><div class="ei">🔍</div><p>No jobs found. Try different filters or run a crawl.</p></div>`;
-    return jobs.map(j => {
-      const type = j.job_type||'unknown';
-      const expText = j.experience_min!=null
-        ? (j.experience_max && j.experience_min!==j.experience_max
-            ? `${j.experience_min}–${j.experience_max} yrs` : `${j.experience_min}+ yrs`)
-        : null;
-      const expPct = j.experience_max ? Math.min(100,(j.experience_max/15)*100) : 0;
-      const source = j.source || (() => { try{return new URL(j.url).hostname.replace('www.','').split('.')[0];}catch(_){return '?'} })();
-      const posted = j.posted_at && j.posted_at.trim()
-        ? (() => { const d = new Date(j.posted_at); return isNaN(d) ? j.posted_at : d.toLocaleDateString(); })()
-        : null;
-      const crawled = j.crawled_at ? j.crawled_at.slice(0,10) : null;
-      return `<div class="card" data-id="${j.id}" onclick="toggleCardSelect(this)">
-        <input type="checkbox" class="card-check" data-id="${j.id}" onclick="event.stopPropagation();toggleCardSelect(this.closest('.card'))"/>
-        <div class="card-top">
-          <div class="ct"><div class="title">${j.title}</div><div class="co">🏢 ${j.company}</div></div>
-          <span class="badge ${type}">${type}</span>
-        </div>
-        <div class="meta">
-          ${j.location?`<span class="mi">📍 ${j.location}</span>`:''}
-          ${expText?`<span class="mi">🕐 ${expText}</span>`:''}
-          ${posted?`<span class="mi">📅 Posted: ${posted}</span>`:''}
-          ${crawled?`<span class="mi">🔄 Crawled: ${crawled}</span>`:''}
-        </div>
-        ${expPct?`<div class="exp-bar"><div class="exp-fill" style="width:${expPct}%"></div></div>`:''}
-        <div class="card-foot">
-          <span class="src-tag">📡 ${source}</span>
-          <a class="apply" href="${j.url}" target="_blank" onclick="event.stopPropagation()">Apply →</a>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  function toggleSelectMode(tabId, on) {
-    const panel = document.getElementById('panel-'+tabId);
-    const mbar  = document.getElementById('mbar-'+tabId);
-    if (!panel || !mbar) return;
-    panel.querySelector('.jobs-area').classList.toggle('select-mode', on);
-    mbar.classList.toggle('hidden', !on);
-    if (!on) panel.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-    updateSelCount(tabId);
-  }
-
-  function toggleCardSelect(card) {
-    const panel = card.closest('.jobs-area');
-    if (!panel?.classList.contains('select-mode')) return;
-    card.classList.toggle('selected');
-    card.querySelector('.card-check').checked = card.classList.contains('selected');
-    // find tabId
-    const tabId = card.closest('.panel')?.id?.replace('panel-','');
-    if (tabId) updateSelCount(tabId);
-  }
-
-  function updateSelCount(tabId) {
-    const panel = document.getElementById('panel-'+tabId);
-    const count = panel?.querySelectorAll('.card.selected').length || 0;
-    const el = document.getElementById('sel-count-'+tabId);
-    if (el) el.textContent = `${count} selected`;
-  }
-
-  async function deleteSelected(tabId) {
-    const panel = document.getElementById('panel-'+tabId);
-    const ids = [...panel.querySelectorAll('.card.selected')].map(c => c.dataset.id).join(',');
-    if (!ids) return;
-    if (!confirm(`Delete ${ids.split(',').length} selected jobs?`)) return;
-    await fetch(`/api/jobs/selected?ids=${ids}`, {method:'DELETE'});
-    toggleSelectMode(tabId, false);
-    await loadJobsIntoTab(tabId, 'newest');
-    loadStats();
-  }
-
-  async function deleteAll(tabId) {
-    if (!confirm('Delete ALL jobs from the database?')) return;
-    await fetch('/api/jobs', {method:'DELETE'});
-    toggleSelectMode(tabId, false);
-    await loadJobsIntoTab(tabId, 'newest');
-    loadStats();
-  }
-
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  async function loadStats() {
-    const s = await fetch('/api/stats').then(r=>r.json());
-    document.getElementById('sn-total').textContent  = s.total + ' jobs';
-    document.getElementById('sn-remote').textContent = s.remote + ' Remote';
-    document.getElementById('sn-onsite').textContent = s.onsite + ' Onsite';
-    document.getElementById('sn-hybrid').textContent = s.hybrid + ' Hybrid';
-  }
-
-  async function clearAllJobs() {
-    if (!confirm('Delete ALL jobs from the database?')) return;
-    await fetch('/api/jobs', {method:'DELETE'});
-    loadStats();
-    Object.keys(tabs).forEach(id => { if (tabs[id].type !== 'crawl') loadJobsIntoTab(id); });
-  }
-
-  function clearFilters() {
-    ['f-role','f-type','f-exp','f-days'].forEach(id=>{
-      const el=document.getElementById(id);
-      el.tagName==='SELECT'?el.selectedIndex=0:el.value='';
-    });
-    [...document.querySelectorAll('#loc-list input')].forEach(o => o.checked = false);
-    activeStatFilter=null;
-    refreshActiveSearchTab();
-    loadStats();
-  }
-
-  // init
+async function loadJobs(){
+  const role=document.getElementById('f-role').value;
+  const type=document.getElementById('f-type').value;
+  const loc=document.getElementById('f-location').value;
+  const sort=document.getElementById('sort-sel').value;
+  const params=new URLSearchParams({sort});
+  if(role)params.append('role',role);
+  if(type)params.append('job_type',type);
+  if(loc)params.append('location',loc);
+  const jobs=await fetch('/api/jobs?'+params).then(r=>r.json());
+  document.getElementById('grid').innerHTML=renderCards(jobs);
+  const today=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('content-sub').textContent=`${jobs.length} roles · Updated ${today}`;
   loadStats();
-  loadCampaigns();
-  openSearchTab();
-  // auto-refresh on filter change
-  ['f-role','f-type','f-days'].forEach(fid => {
-    document.getElementById(fid).addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
-  });
-  document.getElementById('f-exp').addEventListener('input', () => { refreshActiveSearchTab(); loadStats(); });
-  document.querySelectorAll('#loc-list input').forEach(cb => {
-    cb.addEventListener('change', () => { refreshActiveSearchTab(); loadStats(); });
-  });
+}
 
-  function toggleSidebar() {
-    document.querySelector('.sidebar').classList.toggle('open');
-    document.getElementById('sidebar-overlay').classList.toggle('open');
+async function loadStats(){
+  const s=await fetch('/api/stats').then(r=>r.json());
+  document.getElementById('stat-total').textContent=s.total||0;
+  document.getElementById('stat-remote').textContent=s.remote||0;
+  document.getElementById('saved-count').textContent=savedJobs.length;
+  // source health
+  const src=s.by_source||{};
+  const keys=Object.keys(src);
+  document.getElementById('stat-sources').textContent=keys.length||0;
+  const el=document.getElementById('source-health-list');
+  if(keys.length){
+    el.innerHTML=keys.map(k=>`<div class="src-row"><span><span class="src-dot"></span>${k}</span><span class="src-count">${src[k]}</span></div>`).join('');
+  }else{
+    el.innerHTML='<div style="font-size:11px;color:var(--muted2)">No data yet</div>';
   }
+}
+
+async function startCrawl(){
+  const checked=[...document.querySelectorAll('#src-checks input:checked')].map(i=>i.value);
+  if(!checked.length){alert('Select at least one source.');return;}
+  const serpKey=sessionStorage.getItem('serpapi_key')||'';
+  if(checked.includes('google')&&!serpKey){
+    alert('Google Search requires a SerpApi key.');
+    document.getElementById('serpapi-key').focus();return;
+  }
+  const role=document.getElementById('f-role').value;
+  const loc=document.getElementById('f-location').value;
+  const params=new URLSearchParams({sources:checked.join(','),continuous:false,interval:0});
+  if(role)params.append('role',role);
+  if(loc)params.append('locations',loc);
+  if(serpKey)params.append('serpapi_key',serpKey);
+  const {crawl_id}=await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
+  activeCrawlId=crawl_id;
+  document.getElementById('crawl-status').style.display='flex';
+  document.getElementById('crawl-label').textContent=`Crawling ${checked.length} source(s)…`;
+  document.getElementById('log-wrap').style.display='block';
+  document.getElementById('log-body').innerHTML='';
+  document.getElementById('log-status').textContent='● Running';
+  document.getElementById('log-status').style.color='var(--green)';
+  document.getElementById('crawl-btn').textContent='⏳ Running…';
+  document.getElementById('crawl-btn').disabled=true;
+  attachStream(crawl_id);
+}
+
+function attachStream(crawl_id){
+  const es=new EventSource(`/api/crawl/stream/${crawl_id}`);
+  es.onmessage=async e=>{
+    const line=JSON.parse(e.data);
+    appendLog(line);
+    if(line.startsWith('__RUN_DONE__')||line==='__DONE__'){await loadJobs();}
+    if(line==='__DONE__'){
+      es.close();activeCrawlId=null;
+      document.getElementById('crawl-status').style.display='none';
+      document.getElementById('crawl-btn').textContent='↻ Start Crawl';
+      document.getElementById('crawl-btn').disabled=false;
+      document.getElementById('log-status').textContent='● Done';
+      document.getElementById('log-status').style.color='var(--muted)';
+    }
+  };
+}
+
+function appendLog(line){
+  const el=document.getElementById('log-body');
+  const d=document.createElement('div');
+  d.className='ll'+(line==='__DONE__'?' info':line.toLowerCase().includes('error')?' err':line.startsWith('⏳')?' wait':'');
+  d.textContent=line==='__DONE__'?'✅ Done!':line;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+
+function stopCrawl(){
+  if(activeCrawlId)fetch(`/api/crawl/stop/${activeCrawlId}`,{method:'POST'});
+  activeCrawlId=null;
+  document.getElementById('crawl-status').style.display='none';
+  document.getElementById('crawl-btn').textContent='↻ Start Crawl';
+  document.getElementById('crawl-btn').disabled=false;
+}
+
+function toggleLog(){
+  const b=document.getElementById('log-body');
+  const collapsed=b.classList.toggle('hidden');
+  document.getElementById('log-toggle-label').textContent=(collapsed?'▶':'▼')+' Live Log';
+}
+
+loadJobs();
 </script>
 </body>
 </html>
