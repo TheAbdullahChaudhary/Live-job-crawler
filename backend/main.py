@@ -70,6 +70,7 @@ def get_jobs(
 def trigger_crawl(
     sources: str = Query("all"),
     continuous: bool = Query(False),
+    interval: int = Query(0),
     experience: str = Query(None),
     locations: str = Query(None),
     role: str = Query(None),
@@ -106,11 +107,16 @@ def trigger_crawl(
                 q.put(line.rstrip())
             proc.wait()
 
+            q.put(f"__RUN_DONE__{run_count}")
             if not continuous or crawl_stop_flags.get(crawl_id):
                 break
 
-            q.put(f"__RUN_DONE__{run_count}")
-            # no sleep — start next run immediately
+            wait_secs = interval if interval > 0 else 1800  # default 30 min
+            q.put(f"⏳ Next run in {wait_secs//60} min {wait_secs%60} sec… (Stop to cancel)")
+            for _ in range(wait_secs):
+                if crawl_stop_flags.get(crawl_id):
+                    break
+                time.sleep(1)
 
         q.put("__DONE__")
         crawl_stop_flags.pop(crawl_id, None)
