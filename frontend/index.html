@@ -191,7 +191,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 
     <div class="fp-group">
       <div class="fp-label">Role and technology</div>
-      <select class="fp-select" id="f-role" onchange="loadJobs()">
+      <select class="fp-select" id="f-role">
         <option value="">All roles</option>
         <option value="devops">DevOps Engineer</option>
         <option value="site reliability">Site Reliability Engineer</option>
@@ -203,7 +203,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 
     <div class="fp-group">
       <div class="fp-label">Location</div>
-      <select class="fp-select" id="f-location" onchange="loadJobs()">
+      <select class="fp-select" id="f-location">
         <option value="">All locations</option>
         <optgroup label="── Regions ──">
           <option value="remote">🌍 Remote / Worldwide</option>
@@ -257,7 +257,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 
     <div class="fp-group">
       <div class="fp-label">Work style</div>
-      <select class="fp-select" id="f-type" onchange="loadJobs()">
+      <select class="fp-select" id="f-type">
         <option value="">All work styles</option>
         <option value="remote">Remote</option>
         <option value="hybrid">Hybrid</option>
@@ -267,7 +267,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 
     <div class="fp-group">
       <div class="fp-label">Max Experience (years)</div>
-      <input type="number" class="fp-select" id="f-exp" min="0" max="30" placeholder="e.g. 5" oninput="loadJobs()"/>
+      <input type="number" class="fp-select" id="f-exp" min="0" max="30" placeholder="e.g. 5"/>
     </div>
 
     <div class="saved-roles" onclick="alert('Saved roles coming soon')">
@@ -427,16 +427,8 @@ function toggleSave(id,btn){
 }
 
 async function loadJobs(){
-  const role=document.getElementById('f-role').value;
-  const type=document.getElementById('f-type').value;
-  const loc=document.getElementById('f-location').value;
-  const exp=document.getElementById('f-exp').value;
   const sort=document.getElementById('sort-sel').value;
   const params=new URLSearchParams({sort});
-  if(role)params.append('role',role);
-  if(type)params.append('job_type',type);
-  if(loc)params.append('location',loc);
-  if(exp)params.append('experience',exp);
   const crawlId=document.getElementById('f-crawl').value;
   if(crawlId)params.append('crawl_id',crawlId);
   const jobs=await fetch('/api/jobs?'+params).then(r=>r.json());
@@ -473,11 +465,15 @@ async function startCrawl(){
   }
   const role=document.getElementById('f-role').value;
   const loc=document.getElementById('f-location').value;
+  const type=document.getElementById('f-type').value;
+  const exp=document.getElementById('f-exp').value;
   const interval=parseInt(document.getElementById('crawl-interval').value)||0;
   const continuous=interval>0;
   const params=new URLSearchParams({sources:checked.join(','),continuous,interval:interval*60});
   if(role)params.append('role',role);
   if(loc)params.append('locations',loc);
+  if(type)params.append('job_type',type);
+  if(exp)params.append('experience',exp);
   if(serpKey)params.append('serpapi_key',serpKey);
   const {crawl_id}=await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
   activeCrawlId=crawl_id;
