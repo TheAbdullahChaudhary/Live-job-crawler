@@ -10,6 +10,9 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
 CRAWL_ID    = os.environ.get("CRAWL_ID", None)
 
 _CRAWL_ROLE = os.environ.get("CRAWL_ROLE", "").lower().strip()
+_CRAWL_TYPE = os.environ.get("CRAWL_TYPE", "").lower().strip()
+_CRAWL_LOC  = os.environ.get("CRAWL_LOCS", "").lower().strip()
+_CRAWL_EXP  = int(os.environ.get("CRAWL_EXP", 0) or 0)
 ROLE_MAP = {
     "devops":            ["devops"],
     "site reliability":  ["site reliability", "sre"],
@@ -70,6 +73,13 @@ def fmt_company(slug: str) -> str:
 def save_job(job: dict):
     if CRAWL_ID:
         job["crawl_id"] = CRAWL_ID
+    # Apply crawl-time filters
+    if _CRAWL_TYPE and job.get("job_type","").lower() not in (_CRAWL_TYPE, "unknown", ""):
+        return
+    if _CRAWL_LOC and not any(l.strip() in (job.get("location","") or "").lower() for l in _CRAWL_LOC.split(",")):
+        return
+    if _CRAWL_EXP and job.get("experience_min") is not None and job["experience_min"] > _CRAWL_EXP:
+        return
     try:
         with sqlite3.connect(DB) as conn:
             conn.execute("""
