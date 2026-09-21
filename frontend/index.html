@@ -78,12 +78,12 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
 .content{flex:1;padding:28px 32px;overflow-y:auto}
 .content-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .content-title{font-size:18px;font-weight:700;letter-spacing:-.02em}
-.content-sub{font-size:12px;color:var(--muted);margin-bottom:20px}
+.content-sub{font-size:12px;color:var(--muted);margin-bottom:0}
 .sort-sel{padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;cursor:pointer;font-family:inherit}
 .sort-sel:focus{border-color:var(--green)}
 
 /* JOB CARDS */
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
 @media(max-width:1100px){.grid{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:14px;transition:all .2s;cursor:pointer}
 .card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
@@ -287,12 +287,6 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
       </select>
       </div>
     </div>
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-        <option value="posted_desc">Posted: Latest</option>
-        <option value="company">Company A–Z</option>
-      </select>
-    </div>
     <div class="grid" id="grid"></div>
   </main>
 </div>
@@ -314,14 +308,16 @@ function avatarColor(name){let h=0;for(let c of(name||''))h=(h*31+c.charCodeAt(0
 
 function timeAgo(dateStr){
   if(!dateStr)return null;
-  const d=new Date(dateStr);if(isNaN(d))return dateStr;
+  // already relative string like "3 days ago"
+  if(isNaN(Date.parse(dateStr)))return dateStr;
+  const d=new Date(dateStr);
   const diff=Date.now()-d;
   const mins=Math.floor(diff/60000);
-  if(mins<60)return mins<=1?'Just now':`${mins}m ago`;
+  if(mins<2)return 'Just now';
+  if(mins<60)return `${mins}m ago`;
   const hrs=Math.floor(mins/60);
   if(hrs<24)return `${hrs}h ago`;
   const days=Math.floor(hrs/24);
-  if(days===0)return 'Today';
   if(days===1)return 'Yesterday';
   if(days<7)return `${days}d ago`;
   return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
