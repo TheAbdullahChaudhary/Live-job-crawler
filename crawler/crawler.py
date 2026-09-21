@@ -66,6 +66,8 @@ def extract_job_type(text: str) -> str:
 
 def fmt_company(slug: str) -> str:
     return slug.replace("-", " ").replace("_", " ").title()
+
+def save_job(job: dict):
     if CRAWL_ID:
         job["crawl_id"] = CRAWL_ID
     try:
