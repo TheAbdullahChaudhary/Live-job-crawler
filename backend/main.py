@@ -91,10 +91,12 @@ def trigger_crawl(
         if role:        env["CRAWL_ROLE"] = role
         if serpapi_key: env["SERPAPI_KEY"] = serpapi_key
         run_count = 0
+        deadline = time.time() + interval * 60 if (continuous and interval > 0) else None
         while True:
             run_count += 1
             if continuous:
-                q.put(f"=== Run #{run_count} started ===")
+                remaining = max(0, int(deadline - time.time())) if deadline else 0
+                q.put(f"=== Run #{run_count} | {remaining//60}m {remaining%60}s remaining ===")
             proc = subprocess.Popen(
                 [sys.executable, "crawler/crawler.py"],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -106,17 +108,13 @@ def trigger_crawl(
                     break
                 q.put(line.rstrip())
             proc.wait()
-
             q.put(f"__RUN_DONE__{run_count}")
+
             if not continuous or crawl_stop_flags.get(crawl_id):
                 break
-
-            wait_secs = interval if interval > 0 else 1800  # default 30 min
-            q.put(f"⏳ Next run in {wait_secs//60} min {wait_secs%60} sec… (Stop to cancel)")
-            for _ in range(wait_secs):
-                if crawl_stop_flags.get(crawl_id):
-                    break
-                time.sleep(1)
+            if deadline and time.time() >= deadline:
+                q.put("⏹ Time limit reached, stopping.")
+                break
 
         q.put("__DONE__")
         crawl_stop_flags.pop(crawl_id, None)
