@@ -280,6 +280,20 @@
     <!-- Crawl -->
     <div>
       <div class="sec">Crawl Sources</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:500;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between">
+          <span>🔑 SerpApi Key <span style="color:var(--muted2)">(session only)</span></span>
+          <span id="key-status" style="font-size:10px"></span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <input type="password" id="serpapi-key" placeholder="Paste key for Google Search…"
+            style="flex:1;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);outline:none;font-family:inherit"
+            oninput="saveSerpKey(this.value)" autocomplete="off"/>
+          <button onclick="clearSerpKey()" title="Clear"
+            style="padding:7px 10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:12px">✕</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted2);margin-top:4px">Required only for Google Search. Never sent to server storage.</div>
+      </div>
       <div class="src-list">
         <label class="src-item"><input type="checkbox" value="remotive" checked/><span class="sn">Remotive</span><span class="sb">API</span></label>
         <label class="src-item"><input type="checkbox" value="arbeitnow" checked/><span class="sn">Arbeitnow</span><span class="sb">API</span></label>
@@ -688,9 +702,36 @@
     };
   }
 
+  function saveSerpKey(val) {
+    if (val.trim()) {
+      sessionStorage.setItem('serpapi_key', val.trim());
+      document.getElementById('key-status').textContent = '✓ saved';
+      document.getElementById('key-status').style.color = 'var(--green,#7c3aed)';
+    } else {
+      sessionStorage.removeItem('serpapi_key');
+      document.getElementById('key-status').textContent = '';
+    }
+  }
+  function clearSerpKey() {
+    sessionStorage.removeItem('serpapi_key');
+    document.getElementById('serpapi-key').value = '';
+    document.getElementById('key-status').textContent = '';
+  }
+  (function(){
+    const k = sessionStorage.getItem('serpapi_key');
+    if (k) { document.getElementById('serpapi-key').value = k; document.getElementById('key-status').textContent = '✓ saved'; }
+  })();
+
   async function startCrawl() {
     const checked = [...document.querySelectorAll('.src-list input:checked')].map(i=>i.value);
     if (!checked.length) { alert('Select at least one source.'); return; }
+
+    const serpKey = sessionStorage.getItem('serpapi_key') || '';
+    if (checked.includes('google') && !serpKey) {
+      alert('Google Search requires a SerpApi key. Paste it in the key field above, or uncheck Google Search.');
+      document.getElementById('serpapi-key').focus();
+      return;
+    }
 
     const continuous = document.getElementById('opt-continuous').checked;
     const sources    = checked.join(',');
@@ -708,9 +749,12 @@
 
     const params = new URLSearchParams({sources, continuous, interval: 0});
     const exp  = document.getElementById('f-exp').value;
+    const role = document.getElementById('f-role').value;
     const locs = [...document.querySelectorAll('#loc-list input:checked')].map(o=>o.value);
-    if (exp)        params.append('experience', exp);
+    if (exp)         params.append('experience', exp);
+    if (role)        params.append('role', role);
     if (locs.length) params.append('locations', locs.join(','));
+    if (serpKey)     params.append('serpapi_key', serpKey);
     const {crawl_id} = await fetch('/api/crawl?'+params,{method:'POST'}).then(r=>r.json());
     tabs[id].crawl_id = crawl_id;
 

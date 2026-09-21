@@ -7,9 +7,17 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chr
 
 # Set your SerpApi key here or via env var SERPAPI_KEY (free: serpapi.com)
 SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
-CRAWL_ID = os.environ.get("CRAWL_ID", None)
+CRAWL_ID    = os.environ.get("CRAWL_ID", None)
 
-TARGET_ROLES = ["site reliability", "sre", "devops", "platform engineer", "infrastructure engineer"]
+_CRAWL_ROLE = os.environ.get("CRAWL_ROLE", "").lower().strip()
+ROLE_MAP = {
+    "devops":            ["devops"],
+    "site reliability":  ["site reliability", "sre"],
+    "cloud engineer":    ["cloud engineer"],
+    "platform engineer": ["platform engineer"],
+    "infrastructure":    ["infrastructure engineer"],
+}
+TARGET_ROLES = ROLE_MAP.get(_CRAWL_ROLE, ["site reliability", "sre", "devops", "platform engineer", "infrastructure engineer", "cloud engineer"])
 
 GREENHOUSE_COMPANIES = [
     # Cloud & Infra
@@ -270,7 +278,7 @@ def crawl_google():
     if not locations:
         locations = ["remote"]
 
-    roles = ["site reliability engineer", "devops engineer", "platform engineer", "infrastructure engineer"]
+    roles = list(TARGET_ROLES) if _CRAWL_ROLE else ["site reliability engineer", "devops engineer", "platform engineer", "infrastructure engineer", "cloud engineer"]
     seen_urls = set()
     client = serpapi.Client(api_key=SERPAPI_KEY)
 

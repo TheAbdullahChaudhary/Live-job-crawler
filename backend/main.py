@@ -72,6 +72,8 @@ def trigger_crawl(
     continuous: bool = Query(False),
     experience: str = Query(None),
     locations: str = Query(None),
+    role: str = Query(None),
+    serpapi_key: str = Query(None),
 ):
     crawl_id = f"crawl_{int(time.time())}"
     q: queue.Queue = queue.Queue()
@@ -83,8 +85,10 @@ def trigger_crawl(
         env["CRAWL_SOURCES"] = sources
         env["DB_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "jobs.db"))
         env["CRAWL_ID"] = crawl_id
-        if experience: env["CRAWL_EXP"] = experience
-        if locations:  env["CRAWL_LOCS"] = locations
+        if experience:  env["CRAWL_EXP"]  = experience
+        if locations:   env["CRAWL_LOCS"] = locations
+        if role:        env["CRAWL_ROLE"] = role
+        if serpapi_key: env["SERPAPI_KEY"] = serpapi_key
         run_count = 0
         while True:
             run_count += 1
