@@ -61,7 +61,6 @@ def get_jobs(
         "posted_desc": "posted_at DESC NULLS LAST",
         "posted_asc":  "posted_at ASC NULLS LAST",
         "company":     "company ASC",
-        "company":  "company ASC",
     }.get(sort, "crawled_at DESC")
     q += f" ORDER BY {order}"
 
@@ -189,9 +188,14 @@ def delete_selected_jobs(ids: str = Query(..., description="comma-separated job 
 @app.get("/api/stats")
 def stats():
     conn = get_conn()
-    total    = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
-    by_type  = dict(conn.execute("SELECT job_type, COUNT(*) FROM jobs GROUP BY job_type").fetchall())
-    by_co    = dict(conn.execute("SELECT company, COUNT(*) FROM jobs GROUP BY company ORDER BY COUNT(*) DESC LIMIT 5").fetchall())
-    return {"total": total, "by_type": by_type, "top_companies": by_co}
+    rows = conn.execute("""
+        SELECT
+          COUNT(*) as total,
+          SUM(job_type='remote') as remote,
+          SUM(job_type='onsite') as onsite,
+          SUM(job_type='hybrid') as hybrid
+        FROM jobs
+    """).fetchone()
+    return {"total": rows[0], "remote": rows[1] or 0, "onsite": rows[2] or 0, "hybrid": rows[3] or 0}
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")

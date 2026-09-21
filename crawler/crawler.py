@@ -43,7 +43,9 @@ def is_target_role(title: str) -> bool:
 def extract_experience(text: str):
     m = re.search(r'(\d+)\s*[-–to]+\s*(\d+)\s*years?', text, re.I)
     if m: return int(m.group(1)), int(m.group(2))
-    m = re.search(r'(\d+)\+?\s*years?', text, re.I)
+    m = re.search(r'(\d+)\s*\+\s*years?', text, re.I)
+    if m: v = int(m.group(1)); return v, v
+    m = re.search(r'(\d+)\s*years?', text, re.I)
     if m: v = int(m.group(1)); return v, v
     return None, None
 
@@ -54,7 +56,8 @@ def extract_job_type(text: str) -> str:
     if "onsite" in t or "on-site" in t: return "onsite"
     return "unknown"
 
-def save_job(job: dict):
+def fmt_company(slug: str) -> str:
+    return slug.replace("-", " ").replace("_", " ").title()
     if CRAWL_ID:
         job["crawl_id"] = CRAWL_ID
     try:
@@ -156,7 +159,7 @@ def crawl_greenhouse():
                 text = BeautifulSoup(j.get("content", ""), "html.parser").get_text()
                 exp_min, exp_max = extract_experience(text)
                 location = j.get("location", {}).get("name", "Unknown")
-                save_job({"title": title, "company": company.capitalize(),
+                save_job({"title": title, "company": fmt_company(company),
                     "location": location, "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": extract_job_type(location + " " + text[:500]),
                     "url": j.get("absolute_url", ""), "posted_at": j.get("updated_at", ""), "source": "greenhouse"})
@@ -181,7 +184,7 @@ def crawl_lever():
                 exp_min, exp_max = extract_experience(text)
                 location = j.get("categories", {}).get("location", "Unknown")
                 commitment = j.get("categories", {}).get("commitment", "")
-                save_job({"title": title, "company": company.capitalize(),
+                save_job({"title": title, "company": fmt_company(company),
                     "location": location, "experience_min": exp_min, "experience_max": exp_max,
                     "job_type": extract_job_type(location + " " + commitment),
                     "url": j.get("hostedUrl", ""), "posted_at": "", "source": "lever"})
