@@ -552,6 +552,14 @@ async function clearAllJobs(){
 
 loadJobs();
 loadCrawlHistory();
+// Auto-fill SerpApi key from env if set
+fetch('/api/config').then(r=>r.json()).then(c=>{
+  if(c.serpapi_key){
+    const inp=document.getElementById('serpapi-key');
+    inp.value=c.serpapi_key;
+    saveSerpKey(c.serpapi_key);
+  }
+});
 </script>
 </body>
 </html>

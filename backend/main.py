@@ -195,6 +195,11 @@ def delete_selected_jobs(ids: str = Query(..., description="comma-separated job 
     conn.commit()
     return {"deleted": len(id_list)}
 
+@app.get("/api/config")
+def get_config():
+    key = os.environ.get("SERPAPI_KEY", "")
+    return {"serpapi_key": key if key else None}
+
 @app.get("/api/stats")
 def stats():
     conn = get_conn()
