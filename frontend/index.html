@@ -202,11 +202,10 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 32px
     </div>
 
     <div class="fp-group">
-      <div class="fp-label">Location</div>
-      <select class="fp-select" id="f-location">
-        <option value="">All locations</option>
+      <div class="fp-label">Location <span style="font-size:10px;color:var(--muted2)">(Ctrl+click for multiple)</span></div>
+      <select class="fp-select" id="f-location" multiple size="4" style="height:auto;min-height:80px">
+        <option value="worldwide" selected>🌍 Remote / Worldwide</option>
         <optgroup label="── Regions ──">
-          <option value="remote">🌍 Remote / Worldwide</option>
           <option value="europe">🇪🇺 Europe</option>
           <option value="north america">🌎 North America</option>
           <option value="latin america">🌎 Latin America</option>
@@ -464,7 +463,7 @@ async function startCrawl(){
     document.getElementById('serpapi-key').focus();return;
   }
   const role=document.getElementById('f-role').value;
-  const loc=document.getElementById('f-location').value;
+  const loc=[...document.getElementById('f-location').selectedOptions].map(o=>o.value).filter(v=>v&&v!=='worldwide').join(',');
   const type=document.getElementById('f-type').value;
   const exp=document.getElementById('f-exp').value;
   const interval=parseInt(document.getElementById('crawl-interval').value)||0;

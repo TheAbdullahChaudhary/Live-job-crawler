@@ -76,7 +76,7 @@ def save_job(job: dict):
     # Apply crawl-time filters
     if _CRAWL_TYPE and job.get("job_type","").lower() not in (_CRAWL_TYPE, "unknown", ""):
         return
-    if _CRAWL_LOC and not any(l.strip() in (job.get("location","") or "").lower() for l in _CRAWL_LOC.split(",")):
+    if _CRAWL_LOC and not any(kw in ['worldwide','remote','anywhere','all'] for kw in _CRAWL_LOC.split(',')) and not any(l.strip() in (job.get("location","") or "").lower() for l in _CRAWL_LOC.split(",")):
         return
     if _CRAWL_EXP and job.get("experience_min") is not None and job["experience_min"] > _CRAWL_EXP:
         return
